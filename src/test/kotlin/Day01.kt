@@ -100,10 +100,19 @@ data class Cab(var position: Pair<Int, Int> = Pair(0, 0), var direction: Directi
                         Direction.EAST  -> Direction.NORTH
                     }
             }
-
     val path = mutableListOf(position)
-
 }
+
+fun <E> List<E>.twice(): E? {
+    val found = mutableSetOf<E>()
+    forEach {
+        if (found.contains(it)) return it
+        else found += it
+    }
+    return null
+}
+
+fun distance(point1: Pair<Int, Int>, point2: Pair<Int, Int> = Pair(0, 0)) = Math.abs(point1.first - point2.first) + Math.abs(point1.second - point2.second)
 
 fun parseInstructions(instructions: String) = instructions.split(",").map { parseInstruction(it) }
 
@@ -115,9 +124,6 @@ fun parseInstruction(instruction: String): Instruction {
         else -> throw IllegalArgumentException("Unexpected instruction ${instruction[0]}")
     }
 }
-
-fun distance(point1: Pair<Int, Int>, point2: Pair<Int, Int> = Pair(0, 0)) = Math.abs(point1.first - point2.first) + Math.abs(point1.second - point2.second)
-
 
 class Day1Spec : Spek({
 
@@ -250,12 +256,3 @@ class Day1Spec : Spek({
         }
     }
 })
-
-fun <E> List<E>.twice(): E? {
-    val found = mutableSetOf<E>()
-    forEach {
-        if (found.contains(it)) return it
-        else found += it
-    }
-    return null
-}
