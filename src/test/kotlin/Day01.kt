@@ -1,5 +1,6 @@
 
 import org.amshove.kluent.`should equal`
+import org.amshove.kluent.`should not be null`
 import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.it
@@ -39,6 +40,16 @@ R2, R2, R2 leaves you 2 blocks due South of your starting position, which is 2 b
 R5, L5, R5, R3 leaves you 12 blocks away.
 How many blocks away is Easter Bunny HQ?
 
+--- Part Two ---
+
+Then, you notice the instructions continue on the back of the Recruiting Document.
+Easter Bunny HQ is actually at the first location you visit twice.
+
+For example, if your instructions are R8, R4, R4, R8,
+the first location you visit twice is 4 blocks away, due East.
+
+How many blocks away is the first location you visit twice?
+
 */
 
 // Part 1
@@ -58,15 +69,18 @@ data class Cab(var position: Pair<Int, Int> = Pair(0, 0), var direction: Directi
     }
     fun drive(instruction: Instruction): Cab = apply {
         direction = turn(instruction)
-        position = move(direction, instruction.blocks)
+        repeat(instruction.blocks) {
+            position = move(direction)
+            path += position
+        }
     }
 
-    fun move(direction: Direction, blocks: Int): Pair<Int, Int> =
+    fun move(direction: Direction): Pair<Int, Int> =
             when(direction) {
-                Direction.NORTH -> Pair(position.first, position.second + blocks)
-                Direction.EAST  -> Pair(position.first + blocks, position.second)
-                Direction.SOUTH -> Pair(position.first, position.second - blocks)
-                Direction.WEST -> Pair(position.first - blocks, position.second)
+                Direction.NORTH -> Pair(position.first, position.second + 1)
+                Direction.EAST  -> Pair(position.first + 1, position.second)
+                Direction.SOUTH -> Pair(position.first, position.second - 1)
+                Direction.WEST -> Pair(position.first - 1, position.second)
             }
 
     fun turn(instruction: Instruction) =
@@ -86,6 +100,8 @@ data class Cab(var position: Pair<Int, Int> = Pair(0, 0), var direction: Directi
                         Direction.EAST  -> Direction.NORTH
                     }
             }
+
+    val path = mutableListOf(position)
 
 }
 
@@ -210,6 +226,36 @@ class Day1Spec : Spek({
             val input = readResource("day01Input.txt")
             val distance = distance(Cab().drive(input).position, Pair(0,0))
             println("Day01 solution part1=$distance")
+            distance `should equal` 291
+        }
+    }
+    describe("part 2") {
+        describe("example twice") {
+            on("example input") {
+                val input = "R8, R4, R4, R8"
+                it("should return right distance") {
+                    val twice = Cab().drive(input).path.twice()
+                    twice.`should not be null`()
+                    distance(twice!!, Pair(0, 0)) `should equal` 4
+                }
+
+            }
+        }
+        describe("exercise") {
+            val input = readResource("day01Input.txt")
+            val twice = Cab().drive(input).path.twice()
+            val distance = distance(twice!!, Pair(0, 0))
+            println("Day01 solution part2=$distance")
+            distance `should equal` 159
         }
     }
 })
+
+fun <E> List<E>.twice(): E? {
+    val found = mutableSetOf<E>()
+    forEach {
+        if (found.contains(it)) return it
+        else found += it
+    }
+    return null
+}
