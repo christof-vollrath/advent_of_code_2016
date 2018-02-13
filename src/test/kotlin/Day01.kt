@@ -5,7 +5,6 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.it
 import org.jetbrains.spek.api.dsl.on
-import org.jetbrains.spek.api.dsl.xdescribe
 import org.jetbrains.spek.data_driven.data
 import org.jetbrains.spek.data_driven.on as onData
 
@@ -56,20 +55,22 @@ How many blocks away is the first location you visit twice?
 
 enum class Direction { NORTH, EAST, SOUTH, WEST }
 
-sealed class Instruction(open val blocks: Int)
-data class TurnRight(override val blocks: Int) : Instruction(blocks)
-data class TurnLeft(override val blocks: Int) : Instruction(blocks)
+sealed class CabInstruction() {
+    abstract val blocks: Int
+}
+data class TurnRight(override val blocks: Int) : CabInstruction()
+data class TurnLeft(override val blocks: Int) : CabInstruction()
 
 data class Cab(var position: Pair<Int, Int> = Pair(0, 0), var direction: Direction = Direction.NORTH) {
     fun drive(instructions: String) = drive(parseInstructions(instructions))
-    fun drive(instructions: List<Instruction>): Cab = apply {
-        instructions.forEach {
+    fun drive(cabInstructions: List<CabInstruction>): Cab = apply {
+        cabInstructions.forEach {
             drive(it)
         }
     }
-    fun drive(instruction: Instruction): Cab = apply {
-        direction = turn(instruction)
-        repeat(instruction.blocks) {
+    fun drive(cabInstruction: CabInstruction): Cab = apply {
+        direction = turn(cabInstruction)
+        repeat(cabInstruction.blocks) {
             position = move(direction)
             path += position
         }
@@ -83,8 +84,8 @@ data class Cab(var position: Pair<Int, Int> = Pair(0, 0), var direction: Directi
                 Direction.WEST -> Pair(position.first - 1, position.second)
             }
 
-    fun turn(instruction: Instruction) =
-            when(instruction) {
+    fun turn(cabInstruction: CabInstruction) =
+            when(cabInstruction) {
                 is TurnRight ->
                     when(direction) {
                         Direction.NORTH -> Direction.EAST
@@ -116,7 +117,7 @@ fun distance(point1: Pair<Int, Int>, point2: Pair<Int, Int> = Pair(0, 0)) = Math
 
 fun parseInstructions(instructions: String) = instructions.split(",").map { parseInstruction(it) }
 
-fun parseInstruction(instruction: String): Instruction {
+fun parseInstruction(instruction: String): CabInstruction {
     fun parseBlocks(instruction: String) = instruction.trim().substring(1).toInt()
     return when(instruction.trim()[0]) {
         'R' -> TurnRight(parseBlocks(instruction))

@@ -47,6 +47,30 @@ So, in this example, the bathroom code is 1985.
 
 fun decode(input: String) = 1985 //TODO
 
+
+class Keypad(var pos: Pair<Int, Int> = Pair(1, 1)) {
+    val button: Int
+        get() = translate(pos)
+
+    fun translate(pos: Pair<Int, Int>): Int {
+        val TRANSLATION_MATRIX = listOf(
+                listOf(1, 2, 3),
+                listOf(4, 5, 6),
+                listOf(7, 8, 9)
+        )
+        return TRANSLATION_MATRIX[pos.second][pos.first]
+    }
+
+    fun apply(instructions: List<KeypadInstruction>) = instructions.fold(this) { kp, instr -> instr(kp) }
+}
+
+typealias KeypadInstruction = (Keypad) -> Keypad
+fun UP(keypad: Keypad) = Keypad(Pair(keypad.pos.first, checkBounds(keypad.pos.second - 1)))
+fun DOWN(keypad: Keypad) = Keypad(Pair(keypad.pos.first, checkBounds(keypad.pos.second + 1)))
+fun RIGHT(keypad: Keypad) = Keypad(Pair(checkBounds(keypad.pos.first + 1), keypad.pos.second))
+fun LEFT(keypad: Keypad) = Keypad(Pair(checkBounds(keypad.pos.first - 1), keypad.pos.second))
+fun checkBounds(i: Int) = if (i < 0) 0 else if (i > 3) 3 else i
+
 class Day2Spec : Spek({
 
     describe("part 1") {
@@ -68,10 +92,38 @@ class Day2Spec : Spek({
             }
         }
         describe("instructions") {
-            // TODO
+            on("up") {
+                val keypad = Keypad()
+                it("should go up") {
+                    UP(keypad).button `should equal` 2
+                }
+            }
+            on("down") {
+                val keypad = Keypad()
+                it("should go down") {
+                    DOWN(keypad).button `should equal` 8
+                }
+            }
+            on("right") {
+                val keypad = Keypad()
+                it("should go right") {
+                    RIGHT(keypad).button `should equal` 6
+                }
+            }
+            on("left") {
+                val keypad = Keypad()
+                it("should go right") {
+                    LEFT(keypad).button `should equal` 4
+                }
+            }
+            on("two times up") {
+                val keypad = Keypad()
+                it("should stop after first move") {
+                    keypad.apply(listOf(::UP, ::UP)).button `should equal` 2
+                }
+            }
         }
     }
 
 })
 
-class Keypad(var button: Int = 5)
