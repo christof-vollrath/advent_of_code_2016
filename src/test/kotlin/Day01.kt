@@ -55,7 +55,7 @@ How many blocks away is the first location you visit twice?
 
 enum class Direction { NORTH, EAST, SOUTH, WEST }
 
-sealed class CabInstruction() {
+sealed class CabInstruction {
     abstract val blocks: Int
 }
 data class TurnRight(override val blocks: Int) : CabInstruction()
