@@ -1,4 +1,5 @@
 import org.amshove.kluent.`should equal`
+import org.amshove.kluent.shouldThrow
 import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.it
@@ -45,7 +46,16 @@ So, in this example, the bathroom code is 1985.
 
  */
 
-fun decode(input: String) = 1985 //TODO
+fun decode(input: String) = decode(parseKeypadInstructionsList(input))
+fun decode(input: List<List<KeypadInstruction>>): String {
+    val keypad = Keypad()
+    return input.map {
+        val button = keypad.apply(it).button
+        println(keypad.button)
+        println(button)
+        button.toString()
+    }.joinToString("")
+}
 
 val TRANSLATION_MATRIX = listOf(
         listOf(1, 2, 3),
@@ -69,7 +79,26 @@ fun up(keypad: Keypad) = Keypad(Pair(keypad.pos.first, checkBounds(keypad.pos.se
 fun down(keypad: Keypad) = Keypad(Pair(keypad.pos.first, checkBounds(keypad.pos.second + 1)))
 fun right(keypad: Keypad) = Keypad(Pair(checkBounds(keypad.pos.first + 1), keypad.pos.second))
 fun left(keypad: Keypad) = Keypad(Pair(checkBounds(keypad.pos.first - 1), keypad.pos.second))
-fun checkBounds(i: Int) = if (i < 0) 0 else if (i > 3) 3 else i
+fun checkBounds(i: Int) = if (i < 0) 0 else if (i > 2) 2 else i
+
+fun parseKeypadInstructionsList(string: String) =
+        string.split("\n")
+                .filter { ! it.isBlank() }
+                .map {
+                    parseKeypadInstructions(it)
+                }
+
+fun parseKeypadInstructions(string: String) =
+        string.filter { it != ' ' }
+                .map {
+                    when(it) {
+                        'R' -> :: right
+                        'L' -> :: left
+                        'U' -> :: up
+                        'D' -> :: down
+                        else -> throw IllegalArgumentException("Code $it unkown")
+                    }
+                }
 
 class Day2Spec : Spek({
 
@@ -81,7 +110,7 @@ class Day2Spec : Spek({
                 LURDL
                 UUUUD
                 """
-            decode(input) `should equal` 1985
+            decode(input) `should equal` "1985"
         }
         describe("keypad") {
             on("creation of keyapd") {
@@ -122,8 +151,41 @@ class Day2Spec : Spek({
                     keypad.apply(listOf(::up, ::up)).button `should equal` 2
                 }
             }
+            on("some instructions") {
+                val keypad = Keypad()
+                it("should move to 9") {
+                    keypad.apply(parseKeypadInstructions("RRDDD")).button `should equal` 9
+                }
+            }
+            on("some other instructions starting at 9") {
+                val keypad = Keypad(Pair(2, 2))
+                it("should move to 8") {
+                    keypad.apply(parseKeypadInstructions("LURDL")).button `should equal` 8
+                }
+            }
+        }
+        describe("parse") {
+            it("should parse a single input") {
+                parseKeypadInstructions("R") `should equal` listOf(::right)
+            }
+            it("should parse a sequence input") {
+                parseKeypadInstructions("LURDL") `should equal` listOf(::left, ::up, ::right, ::down, ::left)
+            }
+            it("should throw exception with illegal input") {
+                { parseKeypadInstructions("X") } shouldThrow IllegalArgumentException::class
+            }
+            it("should parse a list of instructions") {
+                parseKeypadInstructionsList(
+                        """
+                            UL
+                            RD
+                        """)  `should equal`
+                        listOf(
+                            listOf(::up, ::left),
+                            listOf(::right, ::down)
+                        )
+            }
         }
     }
-
 })
 
