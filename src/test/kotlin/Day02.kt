@@ -44,16 +44,34 @@ Finally, you move up four times (stopping at "2"), then down once, ending with 5
 
 So, in this example, the bathroom code is 1985.
 
+--- Part Two ---
+You finally arrive at the bathroom (it's a several minute walk from the lobby
+so visitors can behold the many fancy conference rooms and water coolers on this floor)
+and go to punch in the code.
+ Much to your bladder's dismay, the keypad is not at all like you imagined it.
+ Instead, you are confronted with the result of hundreds of man-hours of bathroom-keypad-design meetings:
+
+    1
+  2 3 4
+5 6 7 8 9
+  A B C
+    D
+You still start at "5" and stop when you're at an edge, but given the same instructions as above,
+the outcome is very different:
+
+You start at "5" and don't move at all (up and left are both edges), ending at 5.
+Continuing from "5", you move right twice and down three times (through "6", "7", "B", "D", "D"), ending at D.
+Then, from "D", you move five more times (through "D", "B", "C", "C", "B"), ending at B.
+Finally, after five more moves, you end at 3.
+So, given the actual keypad layout, the code would be 5DB3.
+
+Using the same instructions in your puzzle input, what is the correct bathroom code?
  */
 
-fun decode(input: String) = decode(parseKeypadInstructionsList(input))
-fun decode(input: List<List<KeypadInstruction>>): String {
+fun decodeKeypad(input: List<List<KeypadInstruction>>): String {
     val keypad = Keypad()
     return input.map {
-        val button = keypad.apply(it).button
-        println(keypad.button)
-        println(button)
-        button.toString()
+        keypad.apply(it).button
     }.joinToString("")
 }
 
@@ -75,10 +93,10 @@ class Keypad(var pos: Pair<Int, Int> = Pair(1, 1)) {
 }
 
 typealias KeypadInstruction = (Keypad) -> Keypad
-fun up(keypad: Keypad) = Keypad(Pair(keypad.pos.first, checkBounds(keypad.pos.second - 1)))
-fun down(keypad: Keypad) = Keypad(Pair(keypad.pos.first, checkBounds(keypad.pos.second + 1)))
-fun right(keypad: Keypad) = Keypad(Pair(checkBounds(keypad.pos.first + 1), keypad.pos.second))
-fun left(keypad: Keypad) = Keypad(Pair(checkBounds(keypad.pos.first - 1), keypad.pos.second))
+fun up(keypad: Keypad) = keypad.apply { keypad.pos = Pair(keypad.pos.first, checkBounds(keypad.pos.second - 1)) }
+fun down(keypad: Keypad) = keypad.apply { keypad.pos = Pair(keypad.pos.first, checkBounds(keypad.pos.second + 1)) }
+fun right(keypad: Keypad) = keypad.apply { keypad.pos = Pair(checkBounds(keypad.pos.first + 1), keypad.pos.second) }
+fun left(keypad: Keypad) = keypad.apply { keypad.pos = Pair(checkBounds(keypad.pos.first - 1), keypad.pos.second) }
 fun checkBounds(i: Int) = if (i < 0) 0 else if (i > 2) 2 else i
 
 fun parseKeypadInstructionsList(string: String) =
@@ -110,7 +128,7 @@ class Day2Spec : Spek({
                 LURDL
                 UUUUD
                 """
-            decode(input) `should equal` "1985"
+            decodeKeypad(parseKeypadInstructionsList(input)) `should equal` "1985"
         }
         describe("keypad") {
             on("creation of keyapd") {
@@ -185,6 +203,12 @@ class Day2Spec : Spek({
                             listOf(::right, ::down)
                         )
             }
+        }
+        describe("exercise") {
+            val input = readResource("day02Input.txt")
+            val result = decodeKeypad(parseKeypadInstructionsList(input))
+            println(result)
+            result `should equal` "35749"
         }
     }
 })
