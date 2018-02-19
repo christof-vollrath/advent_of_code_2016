@@ -68,45 +68,55 @@ So, given the actual keypad layout, the code would be 5DB3.
 Using the same instructions in your puzzle input, what is the correct bathroom code?
  */
 
-fun decodeKeypad(input: List<List<KeypadInstruction>>): String {
-    val keypad = Keypad()
-    return input.map {
-        keypad.apply(it).button
-    }.joinToString("")
-}
-
 val TRANSLATION_MATRIX = listOf(
-        listOf(' ', ' ', ' ', ' ', ' '),
-        listOf(' ', '1', '2', '3', ' '),
-        listOf(' ', '4', '5', '6', ' '),
-        listOf(' ', '7', '8', '9', ' '),
-        listOf(' ', ' ', ' ', ' ', ' ')
+        "     ",
+        " 123 ",
+        " 456 ",
+        " 789 ",
+        "     "
 )
 
-class Keypad(var pos: Pair<Int, Int> = findButton('5')) {
+val TRANSLATION_MATRIX2 = listOf(
+        "       ",
+        "   1   ",
+        "  234  ",
+        " 56789 ",
+        "  ABC  ",
+        "   D   ",
+        "       "
+)
+
+typealias KeypadInstruction = Keypad.() -> Keypad
+
+class Keypad(initButton: Char = '5', val translationMatrix: List<String> = TRANSLATION_MATRIX) {
+    var pos: Pair<Int, Int> = findButton(initButton)
+
     val button: Char
         get() = translateKeypad(pos)
 
-
     fun apply(instructions: List<KeypadInstruction>) = instructions.fold(this) { kp, instr -> instr(kp) }
-}
-
-fun translateKeypad(pos: Pair<Int, Int>) = TRANSLATION_MATRIX[pos.second][pos.first]
-fun findButton(button: Char): Pair<Int, Int> {
-    TRANSLATION_MATRIX.forEachIndexed { first, row ->
-        row.forEachIndexed {
-            second, c ->  if (TRANSLATION_MATRIX[first][second] == button) return Pair(second, first)
-        }
+    fun decodeKeypad(input: List<List<KeypadInstruction>>): String {
+        return input.map {
+            apply(it).button
+        }.joinToString("")
     }
-    throw IllegalArgumentException("Button=$button not found")
-}
 
-typealias KeypadInstruction = (Keypad) -> Keypad
-fun up(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first, keypad.pos.second - 1)) }
-fun down(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first, keypad.pos.second + 1)) }
-fun right(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first + 1, keypad.pos.second)) }
-fun left(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first - 1, keypad.pos.second)) }
-fun checkBounds(current: Pair<Int, Int>, next: Pair<Int, Int>) = if (translateKeypad(next) == ' ') current else next
+    fun translateKeypad(pos: Pair<Int, Int>) = translationMatrix[pos.second][pos.first]
+    fun findButton(button: Char): Pair<Int, Int> {
+        translationMatrix.forEachIndexed { first, row ->
+            row.forEachIndexed {
+                second, c ->  if (c == button) return Pair(second, first)
+            }
+        }
+        throw IllegalArgumentException("Button=$button not found")
+    }
+
+    fun up() = apply { pos = checkBounds(pos, Pair(pos.first, pos.second - 1)) }
+    fun down() = apply { pos = checkBounds(pos, Pair(pos.first, pos.second + 1)) }
+    fun right() = apply { pos = checkBounds(pos, Pair(pos.first + 1, pos.second)) }
+    fun left() = apply { pos = checkBounds(pos, Pair(pos.first - 1, pos.second)) }
+    fun checkBounds(current: Pair<Int, Int>, next: Pair<Int, Int>) = if (translateKeypad(next) == ' ') current else next
+}
 
 fun parseKeypadInstructionsList(string: String) =
         string.split("\n")
@@ -119,10 +129,10 @@ fun parseKeypadInstructions(string: String) =
         string.filter { it != ' ' }
                 .map {
                     when(it) {
-                        'R' -> :: right
-                        'L' -> :: left
-                        'U' -> :: up
-                        'D' -> :: down
+                        'R' -> Keypad::right
+                        'L' -> Keypad::left
+                        'U' -> Keypad::up
+                        'D' -> Keypad::down
                         else -> throw IllegalArgumentException("Code $it unkown")
                     }
                 }
@@ -137,7 +147,8 @@ class Day2Spec : Spek({
                 LURDL
                 UUUUD
                 """
-            decodeKeypad(parseKeypadInstructionsList(input)) `should equal` "1985"
+            val instructions = parseKeypadInstructionsList(input)
+            Keypad().decodeKeypad(instructions) `should equal` "1985"
         }
         describe("keypad") {
             on("creation of keyapd") {
@@ -151,31 +162,31 @@ class Day2Spec : Spek({
             on("up") {
                 val keypad = Keypad()
                 it("should go up") {
-                    up(keypad).button `should equal` '2'
+                    keypad.up().button `should equal` '2'
                 }
             }
             on("down") {
                 val keypad = Keypad()
                 it("should go down") {
-                    down(keypad).button `should equal` '8'
+                    keypad.down().button `should equal` '8'
                 }
             }
             on("right") {
                 val keypad = Keypad()
                 it("should go right") {
-                    right(keypad).button `should equal` '6'
+                    keypad.right().button `should equal` '6'
                 }
             }
             on("left") {
                 val keypad = Keypad()
                 it("should go right") {
-                    left(keypad).button `should equal` '4'
+                    keypad.left().button `should equal` '4'
                 }
             }
             on("two times up") {
                 val keypad = Keypad()
                 it("should stop after first move") {
-                    keypad.apply(listOf(::up, ::up)).button `should equal` '2'
+                    keypad.apply(listOf(Keypad::up, Keypad::up)).button `should equal` '2'
                 }
             }
             on("some instructions") {
@@ -185,7 +196,7 @@ class Day2Spec : Spek({
                 }
             }
             on("some other instructions starting at 9") {
-                val keypad = Keypad(findButton('9'))
+                val keypad = Keypad('9')
                 it("should move to 8") {
                     keypad.apply(parseKeypadInstructions("LURDL")).button `should equal` '8'
                 }
@@ -193,10 +204,10 @@ class Day2Spec : Spek({
         }
         describe("parse") {
             it("should parse a single input") {
-                parseKeypadInstructions("R") `should equal` listOf(::right)
+                parseKeypadInstructions("R") `should equal` listOf(Keypad::right)
             }
             it("should parse a sequence input") {
-                parseKeypadInstructions("LURDL") `should equal` listOf(::left, ::up, ::right, ::down, ::left)
+                parseKeypadInstructions("LURDL") `should equal` listOf(Keypad::left, Keypad::up, Keypad::right, Keypad::down, Keypad::left)
             }
             it("should throw exception with illegal input") {
                 { parseKeypadInstructions("X") } shouldThrow IllegalArgumentException::class
@@ -208,17 +219,36 @@ class Day2Spec : Spek({
                             RD
                         """)  `should equal`
                         listOf(
-                            listOf(::up, ::left),
-                            listOf(::right, ::down)
+                            listOf(Keypad::up, Keypad::left),
+                            listOf(Keypad::right, Keypad::down)
                         )
             }
         }
         describe("exercise") {
             val input = readResource("day02Input.txt")
-            val result = decodeKeypad(parseKeypadInstructionsList(input))
+            val result = Keypad().decodeKeypad(parseKeypadInstructionsList(input))
             println(result)
             result `should equal` "35749"
         }
     }
+
+    describe("part 2") {
+        describe("example bathroom") {
+            val input = """
+            ULL
+            RRDDD
+            LURDL
+            UUUUD
+            """
+            Keypad(translationMatrix = TRANSLATION_MATRIX2).decodeKeypad(parseKeypadInstructionsList(input)) `should equal` "5DB3"
+        }
+        describe("exercise") {
+            val input = readResource("day02Input.txt")
+            val result = Keypad(translationMatrix = TRANSLATION_MATRIX2).decodeKeypad(parseKeypadInstructionsList(input))
+            println(result)
+            result `should equal` "9365C"
+        }
+    }
+
 })
 
