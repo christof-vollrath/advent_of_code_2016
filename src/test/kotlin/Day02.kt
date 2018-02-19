@@ -76,28 +76,37 @@ fun decodeKeypad(input: List<List<KeypadInstruction>>): String {
 }
 
 val TRANSLATION_MATRIX = listOf(
-        listOf(1, 2, 3),
-        listOf(4, 5, 6),
-        listOf(7, 8, 9)
+        listOf(' ', ' ', ' ', ' ', ' '),
+        listOf(' ', '1', '2', '3', ' '),
+        listOf(' ', '4', '5', '6', ' '),
+        listOf(' ', '7', '8', '9', ' '),
+        listOf(' ', ' ', ' ', ' ', ' ')
 )
 
-class Keypad(var pos: Pair<Int, Int> = Pair(1, 1)) {
-    val button: Int
-        get() = translate(pos)
+class Keypad(var pos: Pair<Int, Int> = findButton('5')) {
+    val button: Char
+        get() = translateKeypad(pos)
 
-    fun translate(pos: Pair<Int, Int>): Int {
-        return TRANSLATION_MATRIX[pos.second][pos.first]
-    }
 
     fun apply(instructions: List<KeypadInstruction>) = instructions.fold(this) { kp, instr -> instr(kp) }
 }
 
+fun translateKeypad(pos: Pair<Int, Int>) = TRANSLATION_MATRIX[pos.second][pos.first]
+fun findButton(button: Char): Pair<Int, Int> {
+    TRANSLATION_MATRIX.forEachIndexed { first, row ->
+        row.forEachIndexed {
+            second, c ->  if (TRANSLATION_MATRIX[first][second] == button) return Pair(second, first)
+        }
+    }
+    throw IllegalArgumentException("Button=$button not found")
+}
+
 typealias KeypadInstruction = (Keypad) -> Keypad
-fun up(keypad: Keypad) = keypad.apply { keypad.pos = Pair(keypad.pos.first, checkBounds(keypad.pos.second - 1)) }
-fun down(keypad: Keypad) = keypad.apply { keypad.pos = Pair(keypad.pos.first, checkBounds(keypad.pos.second + 1)) }
-fun right(keypad: Keypad) = keypad.apply { keypad.pos = Pair(checkBounds(keypad.pos.first + 1), keypad.pos.second) }
-fun left(keypad: Keypad) = keypad.apply { keypad.pos = Pair(checkBounds(keypad.pos.first - 1), keypad.pos.second) }
-fun checkBounds(i: Int) = if (i < 0) 0 else if (i > 2) 2 else i
+fun up(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first, keypad.pos.second - 1)) }
+fun down(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first, keypad.pos.second + 1)) }
+fun right(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first + 1, keypad.pos.second)) }
+fun left(keypad: Keypad) = keypad.apply { keypad.pos = checkBounds(keypad.pos, Pair(keypad.pos.first - 1, keypad.pos.second)) }
+fun checkBounds(current: Pair<Int, Int>, next: Pair<Int, Int>) = if (translateKeypad(next) == ' ') current else next
 
 fun parseKeypadInstructionsList(string: String) =
         string.split("\n")
@@ -134,7 +143,7 @@ class Day2Spec : Spek({
             on("creation of keyapd") {
                 val keypad = Keypad()
                 it("should start with button 5") {
-                    keypad.button `should equal` 5
+                    keypad.button `should equal` '5'
                 }
             }
         }
@@ -142,43 +151,43 @@ class Day2Spec : Spek({
             on("up") {
                 val keypad = Keypad()
                 it("should go up") {
-                    up(keypad).button `should equal` 2
+                    up(keypad).button `should equal` '2'
                 }
             }
             on("down") {
                 val keypad = Keypad()
                 it("should go down") {
-                    down(keypad).button `should equal` 8
+                    down(keypad).button `should equal` '8'
                 }
             }
             on("right") {
                 val keypad = Keypad()
                 it("should go right") {
-                    right(keypad).button `should equal` 6
+                    right(keypad).button `should equal` '6'
                 }
             }
             on("left") {
                 val keypad = Keypad()
                 it("should go right") {
-                    left(keypad).button `should equal` 4
+                    left(keypad).button `should equal` '4'
                 }
             }
             on("two times up") {
                 val keypad = Keypad()
                 it("should stop after first move") {
-                    keypad.apply(listOf(::up, ::up)).button `should equal` 2
+                    keypad.apply(listOf(::up, ::up)).button `should equal` '2'
                 }
             }
             on("some instructions") {
                 val keypad = Keypad()
                 it("should move to 9") {
-                    keypad.apply(parseKeypadInstructions("RRDDD")).button `should equal` 9
+                    keypad.apply(parseKeypadInstructions("RRDDD")).button `should equal` '9'
                 }
             }
             on("some other instructions starting at 9") {
-                val keypad = Keypad(Pair(2, 2))
+                val keypad = Keypad(findButton('9'))
                 it("should move to 8") {
-                    keypad.apply(parseKeypadInstructions("LURDL")).button `should equal` 8
+                    keypad.apply(parseKeypadInstructions("LURDL")).button `should equal` '8'
                 }
             }
         }
