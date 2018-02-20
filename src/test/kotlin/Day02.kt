@@ -118,8 +118,8 @@ class Keypad(initButton: Char = '5', val translationMatrix: List<String> = TRANS
     fun checkBounds(current: Pair<Int, Int>, next: Pair<Int, Int>) = if (translateKeypad(next) == ' ') current else next
 }
 
-fun parseKeypadInstructionsList(string: String) =
-        string.split("\n")
+fun parseKeypadInstructionsList(input: String) =
+        input.split("\n")
                 .filter { ! it.isBlank() }
                 .map {
                     parseKeypadInstructions(it)
