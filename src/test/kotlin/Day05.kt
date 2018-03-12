@@ -60,6 +60,39 @@ Be extra proud of your solution if it uses a cinematic "decrypting" animation.
  */
 
 
+fun doorPassword(input: String, length: Int, startIndex: Int = 0): String {
+    val builder = StringBuilder()
+    var index = startIndex
+    while(builder.length < length) {
+        val hash = md5(input + index)
+        if (hash.startsWith("00000")) {
+            builder.append(hash[5])
+            println(builder.toString())
+        }
+        index++
+    }
+    return builder.toString()
+}
+
+fun doorPassword2(input: String, length: Int, startIndex: Int = 0): String {
+    val password = charArrayOf('_', '_', '_', '_', '_', '_', '_', '_')
+    var index = startIndex
+    var found = 0
+    while (found < length) {
+        val hash = md5(input + index)
+        if (hash.startsWith("00000")) {
+            val pos = hash[5].toString().toInt(16)
+            if (pos < password.size && password[pos] == '_') {
+                found++
+                password[pos] = hash[6]
+                println(password.joinToString(""))
+            }
+        }
+        index++
+    }
+    return password.joinToString("")
+}
+
 fun md5(input: String) = md5(stringToAsciiBytes(input))
 fun md5(input: ByteArray): String {
     val md = MessageDigest.getInstance("MD5")
@@ -106,18 +139,25 @@ class Day5Spec : Spek({
             }
         }
     }
-})
 
-fun doorPassword(input: String, length: Int, startIndex: Int = 0): String {
-    val builder = StringBuilder()
-    var index = startIndex
-    while(builder.length < length) {
-        val hash = md5(input + index)
-        if (hash.startsWith("00000")) {
-            builder.append(hash[5])
-            println(builder.toString())
+    describe("part 2") {
+        describe("example") { // This takes about 3 min
+            describe("example") {
+                xit("password should be partially correct") {
+                    val input = "abc"
+                    doorPassword2(input, 2, 3231929) `should equal` "_5__e___"
+                }
+            }
         }
-        index++
+
+        describe("exercise") { // This takes about 3 min
+            xit("password should be correct") {
+                val input = "ugkcyxxp"
+                val pwd = doorPassword2(input, 8)
+                println(pwd)
+                pwd `should equal` "f2c730e5"
+            }
+        }
+
     }
-    return builder.toString()
-}
+})
