@@ -68,13 +68,6 @@ class EncryptedName(val name: String, val sectorId: Int, val checkSum: String) {
     fun checkEncryptedName() = checksum(name) == checkSum
 }
 
-
-fun parseEncryptedNames(input: String) =
-        input.split("\n")
-                .filter { ! it.isBlank() }
-                .map { it.trim() }
-
-
 fun alphaToInt(c: Char) = c - 'a'
 fun intToAlpha(i: Int) = (i + 'a'.toInt()).toChar()
 fun decryptChar(c: Char, count: Int) =
@@ -118,7 +111,7 @@ class Day4Spec : Spek({
                     totally-real-room-200[decoy]
                     """
             it("should parse") {
-                parseEncryptedNames(input) `should equal` listOf(
+                parseTrimedLines(input) `should equal` listOf(
                         "aaaaa-bbb-z-y-x-123[abxyz]",
                         "a-b-c-d-e-f-g-h-987[abcde]",
                         "not-a-real-room-404[oarel]",
@@ -180,7 +173,7 @@ class Day4Spec : Spek({
         }
         describe("exercise") {
             val input = readResource("day04Input.txt")
-            val result = parseEncryptedNames(input)
+            val result = parseTrimedLines(input)
                     .map { parseEncryptedName(it) }
                     .filter { it.checkEncryptedName() }
                     .map { it.sectorId }.sum()
@@ -219,7 +212,7 @@ class Day4Spec : Spek({
         }
         describe("exercise") {
             val input = readResource("day04Input.txt")
-            val result = parseEncryptedNames(input)
+            val result = parseTrimedLines(input)
                     .map { parseEncryptedName(it) }
                     .filter { it.checkEncryptedName() }
                     .filter { decryptName(it).startsWith("northpole") }

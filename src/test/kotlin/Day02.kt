@@ -120,11 +120,7 @@ class Keypad(initButton: Char = '5', val translationMatrix: List<String> = TRANS
 }
 
 fun parseKeypadInstructionsList(input: String) =
-        input.split("\n")
-                .filter { ! it.isBlank() }
-                .map {
-                    parseKeypadInstructions(it)
-                }
+        parseTrimedLines(input).map { parseKeypadInstructions(it) }
 
 fun parseKeypadInstructions(string: String) =
         string.filter { it != ' ' }

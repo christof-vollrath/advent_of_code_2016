@@ -52,15 +52,12 @@ fun countTriangles(triangles: List<List<Int>>) = triangles.filter { checkTriangl
 
 
 fun parseTriangles(input: String): List<List<Int>> =
-        input.split("\n")
-                .filter { ! it.isBlank() }
-                .map { parseTriangle(it) }
+        parseTrimedLines(input).map { parseTriangle(it) }
 
 fun parseTriangle(input: String) =
         input.split(" ")
                 .filter { ! it.isBlank() }
                 .map { it.toInt() }
-
 
 fun parseTriangles2(input: String): List<List<Int>> {
     val rowsList = parseTriangles(input)
