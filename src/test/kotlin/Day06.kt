@@ -161,7 +161,6 @@ class Day6Spec : Spek({
             println(result)
             result `should equal` "ovtrjcjh"
         }
-
     }
 
 })
