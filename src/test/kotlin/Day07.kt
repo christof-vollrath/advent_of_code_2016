@@ -48,6 +48,53 @@ zazbz[bzb]cdb supports SSL (zaz has no corresponding aza, but zbz has a correspo
 How many IPs in your puzzle input support SSL?
  */
 
+
+fun checkIp7Adress(address: String): Boolean {
+    val splitted = splitIp7Address(address)
+    val supernetSequences = splitted.first
+    val hypernetSequences = splitted.second
+    return containsAbba(supernetSequences) && !containsAbba(hypernetSequences)
+}
+
+fun containsAbba(parts: List<String>) = parts.any { containsAbba(it) }
+fun containsAbba(string: String) = splitNgrams(string, 4).any { checkAbba(it) }
+
+fun checkAbba(string: String)  =
+        string[0] != string[1]
+                && string[0] == string[3]
+                && string [1] == string[2]
+
+fun checkIp7AdressSupportsSsl(address: String): Boolean {
+    val splitted = splitIp7Address(address)
+    val supernetSequences = splitted.first
+    val hypernetSequences = splitted.second
+    val abas = findAbas(supernetSequences)
+    val babs = abas.map { convertToBab(it) }
+    return hypernetSequences.any { hypernetSequence -> babs.any { bab -> hypernetSequence.contains(bab)} }
+}
+
+fun convertToBab(aba: String) = String(charArrayOf(aba[1], aba[0],  aba[1]))
+
+fun findAbas(parts: List<String>) = parts.flatMap { findAbas(it) }
+fun findAbas(part: String) = splitNgrams(part, 3).filter { checkAba(it) }
+
+fun checkAba(string: String) = string[0] != string[1] && string[0] == string[2]
+
+fun splitNgrams(string: String, length: Int) = string.withIndex().map {
+    if (it.index <= string.length - length) ngram(string, it.index, length)
+    else null
+}.filterNotNull()
+
+fun ngram(string: String, index: Int, length: Int) =
+        (index until index+length).map { string[it] }.joinToString("")
+
+fun splitIp7Address(address: String) = with(splitIp7AddressInParts(address).withIndex()) {
+    Pair(filter { it.index % 2 == 0 }. map { it.value },
+            filter { it.index % 2 != 0 }. map { it.value }   )
+}
+
+fun splitIp7AddressInParts(address: String) = address.split("[", "]")
+
 class Day7Spec : Spek({
 
     describe("part 1") {
@@ -172,48 +219,3 @@ class Day7Spec : Spek({
     }
 })
 
-fun checkIp7Adress(address: String): Boolean {
-    val splitted = splitIp7Address(address)
-    val supernetSequences = splitted.first
-    val hypernetSequences = splitted.second
-    return containsAbba(supernetSequences) && !containsAbba(hypernetSequences)
-}
-
-fun containsAbba(parts: List<String>) = parts.any { containsAbba(it) }
-fun containsAbba(string: String) = splitNgrams(string, 4).any { checkAbba(it) }
-
-fun checkAbba(string: String)  =
-        string[0] != string[1]
-                && string[0] == string[3]
-                && string [1] == string[2]
-
-fun checkIp7AdressSupportsSsl(address: String): Boolean {
-    val splitted = splitIp7Address(address)
-    val supernetSequences = splitted.first
-    val hypernetSequences = splitted.second
-    val abas = findAbas(supernetSequences)
-    val babs = abas.map { convertToBab(it) }
-    return hypernetSequences.any { hypernetSequence -> babs.any { bab -> hypernetSequence.contains(bab)} }
-}
-
-fun convertToBab(aba: String) = String(charArrayOf(aba[1], aba[0],  aba[1]))
-
-fun findAbas(parts: List<String>) = parts.flatMap { findAbas(it) }
-fun findAbas(part: String) = splitNgrams(part, 3).filter { checkAba(it) }
-
-fun checkAba(string: String) = string[0] != string[1] && string[0] == string[2]
-
-fun splitNgrams(string: String, length: Int) = string.withIndex().map {
-    if (it.index <= string.length - length) ngram(string, it.index, length)
-    else null
-}.filterNotNull()
-
-fun ngram(string: String, index: Int, length: Int) =
-        (index until index+length).map { string[it] }.joinToString("")
-
-fun splitIp7Address(address: String) = with(splitIp7AddressInParts(address).withIndex()) {
-    Pair(filter { it.index % 2 == 0 }. map { it.value },
-            filter { it.index % 2 != 0 }. map { it.value }   )
-}
-
-fun splitIp7AddressInParts(address: String) = address.split("[", "]")

@@ -1,3 +1,9 @@
+import org.amshove.kluent.`should equal`
+import org.jetbrains.spek.api.Spek
+import org.jetbrains.spek.api.dsl.describe
+import org.jetbrains.spek.api.dsl.given
+import org.jetbrains.spek.api.dsl.it
+
 /*
 --- Day 8: Two-Factor Authentication ---
 
@@ -57,3 +63,129 @@ after you swipe your card, if the screen did work, how many pixels should be lit
 
 
  */
+
+class Day8Spec : Spek({
+
+    describe("part 1") {
+        describe("example") {
+            given("an initial rectancle") {
+                val initialDisplay = createDisplay(7, 3)
+                val afterRecty3x2 = initialDisplay.rect(3, 2)
+                it ("should show the correct pixels after rect 3, 2") {
+                    afterRecty3x2.convertToString() `should equal`
+                            """
+                            ###....
+                            ###....
+                            .......
+                            """.trimIndent()
+                }
+                val afterRotateX1by0 = afterRecty3x2.rotateX(1, 0)
+                it("should show the correct pixels after rotate x = 1 by 0") {
+                    afterRotateX1by0.convertToString() `should equal`
+                            """
+                            ###....
+                            ###....
+                            .......
+                            """.trimIndent()
+                }
+                val afterRotateX1by1 = afterRotateX1by0.rotateX(1, 1)
+                it("should show the correct pixels after rotate x = 1 by 1") {
+                    afterRotateX1by1.convertToString() `should equal`
+                            """
+                            #.#....
+                            ###....
+                            .#.....
+                            """.trimIndent()
+                }
+                val afterRotateY0by4 = afterRotateX1by1.rotateY(0, 4)
+                it("should show the correct pixels after rotate y = 0 by 4") {
+                    afterRotateY0by4.convertToString() `should equal`
+                            """
+                            ....#.#
+                            ###....
+                            .#.....
+                            """.trimIndent()
+                }
+                val afterRotateX1by1again = afterRotateY0by4.rotateX(1, 1)
+                it("should show the correct pixels after another rotate x = 1 by 1") {
+                    afterRotateX1by1again.convertToString() `should equal`
+                            """
+                            .#..#.#
+                            #.#....
+                            .#.....
+                            """.trimIndent()
+                }
+                it("should have 6 pixels") {
+                    afterRotateX1by1again.countPixels() `should equal` 6
+                }
+            }
+        }
+        describe("exercise") {
+            given("extercise input") {
+                val input = readResource("day08Input.txt")
+                val inputList = parseTrimedLines(input)
+//                it("should calculate the correct result") {
+//                    val result = inputList.filter { checkIp7Adress(it) }.count()
+//                    println(result)
+//                    result `should equal` 105
+//                }
+            }
+        }
+    }
+})
+
+fun Array<CharArray>.rect(xInit: Int, yInit: Int): Array<CharArray> =
+        mapIndexed { y, row ->
+            row.mapIndexed { x, _ ->
+                if (x < xInit && y < yInit) '#'
+                else this[y][x]
+            }
+            .toCharArray()
+        }.toTypedArray()
+
+fun createDisplay(xSize: Int, ySize: Int) =
+        Array(ySize) {
+            CharArray(xSize) {
+                '.'
+            }
+        }
+
+private fun Array<CharArray>.rotateX(xToRotate: Int, decr: Int): Array<CharArray> =
+        mapIndexed { y, row ->
+            row.mapIndexed { x, _ ->
+                if (x == xToRotate) {
+                    this[rotateIndex(y, decr, size)][x]
+                } else this[y][x]
+            }
+            .toCharArray()
+        }.toTypedArray()
+
+private fun Array<CharArray>.rotateY(yToRotate: Int, decr: Int): Array<CharArray> =
+        mapIndexed { y, row ->
+            row.mapIndexed { x, _ ->
+                if (y == yToRotate) {
+                    this[y][rotateIndex(x, decr, row.size)]
+                } else this[y][x]
+            }.toCharArray()
+        }.toTypedArray()
+
+private fun rotateIndex(index: Int, decr: Int, size: Int): Int {
+    val h = (index - decr) % size
+    if (h < 0) return size + h
+    else return h
+}
+
+private fun Array<CharArray>.convertToString() = mapIndexed { index, col ->
+        col.joinToString("") +
+                if (index < size - 1) "\n"
+                else ""
+    }
+    .joinToString("")
+
+private fun Array<CharArray>.countPixels() =
+        map {
+            it.count {
+                it == '#'
+            }
+        }
+        .sum()
