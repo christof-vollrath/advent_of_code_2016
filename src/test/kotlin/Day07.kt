@@ -212,7 +212,7 @@ class Day7Spec : Spek({
                 it("should calculate the correct result") {
                     val result = inputList.filter { checkIp7AdressSupportsSsl(it) }.count()
                     println(result)
-                    result `should equal` 258 // TODO
+                    result `should equal` 258
                 }
             }
         }

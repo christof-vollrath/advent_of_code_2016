@@ -61,13 +61,107 @@ That's what the advertisement on the back of the display tries to convince you, 
 There seems to be an intermediate check of the voltage used by the display:
 after you swipe your card, if the screen did work, how many pixels should be lit?
 
+--- Part Two ---
+
+You notice that the screen is only capable of displaying capital letters;
+in the font it uses, each letter is 5 pixels wide and 6 tall.
+
+After you swipe your card, what code is the screen trying to display?
 
  */
+
+typealias CodeDisplay = Array<CharArray>
+typealias CodeDisplayCommand = (CodeDisplay) -> CodeDisplay
+
+fun parseKeypadCommands(commandLines: List<String>) = commandLines.map { parseKeypadCommand(it) }
+
+fun parseKeypadCommand(commandLine: String): CodeDisplayCommand {
+    val parts = commandLine.split(" ")
+    return when (parts[0]) {
+        "rect" -> parseRect(parts[1])
+        "rotate" -> parseRotate(parts[1], parts[2], parts[4])
+        else -> throw IllegalArgumentException("Cannot parse command ${parts[0]}")
+    }
+}
+
+fun parseRotate(colOrRow: String, xyString: String, decrString: String): CodeDisplayCommand {
+    val xy = xyString.split("=")[1].toInt()
+    val decr = decrString.toInt()
+    return when (colOrRow) {
+        "row" -> { codeDisplay -> codeDisplay.rotateY(xy, decr) }
+        "column" -> { codeDisplay -> codeDisplay.rotateX(xy, decr) }
+        else -> throw IllegalArgumentException("Cannot parse rotate ${colOrRow[0]}")
+    }
+}
+
+fun parseRect(xy: String): CodeDisplayCommand {
+    val parts = xy.split("x")
+    val x = parts[0].toInt()
+    val y = parts[1].toInt()
+    return { codeDisplay -> codeDisplay.rect(x, y) }
+}
+
+fun createDisplay(xSize: Int, ySize: Int) =
+        Array(ySize) {
+            CharArray(xSize) {
+                '.'
+            }
+        }
+
+fun CodeDisplay.rect(xInit: Int, yInit: Int): CodeDisplay =
+        mapIndexed { y, row ->
+            row.mapIndexed { x, _ ->
+                if (x < xInit && y < yInit) '#'
+                else this[y][x]
+            }.toCharArray()
+        }.toTypedArray()
+
+private fun CodeDisplay.rotateX(xToRotate: Int, decr: Int): CodeDisplay =
+        mapIndexed { y, row ->
+            row.mapIndexed { x, _ ->
+                if (x == xToRotate) {
+                    this[rotateIndex(y, decr, size)][x]
+                } else this[y][x]
+            }.toCharArray()
+        }.toTypedArray()
+
+private fun CodeDisplay.rotateY(yToRotate: Int, decr: Int): CodeDisplay =
+        mapIndexed { y, row ->
+            row.mapIndexed { x, _ ->
+                if (y == yToRotate) {
+                    this[y][rotateIndex(x, decr, row.size)]
+                } else this[y][x]
+            }.toCharArray()
+        }.toTypedArray()
+
+private fun rotateIndex(index: Int, decr: Int, size: Int): Int {
+    val h = (index - decr) % size
+    if (h < 0) return size + h
+    else return h
+}
+
+fun CodeDisplay.execute(commands: List<CodeDisplayCommand>): CodeDisplay =
+        commands.fold(this) { value, command ->
+            command(value)
+        }
+
+private fun CodeDisplay.convertToString() = mapIndexed { index, col ->
+        col.joinToString("") +
+                if (index < size - 1) "\n"
+                else ""
+        }.joinToString("")
+
+private fun CodeDisplay.countPixels() =
+        map {
+            it.count {
+                it == '#'
+            }
+        }.sum()
 
 class Day8Spec : Spek({
 
     describe("part 1") {
-        describe("example") {
+        describe("example by function calls") {
             given("an initial rectancle") {
                 val initialDisplay = createDisplay(7, 3)
                 val afterRecty3x2 = initialDisplay.rect(3, 2)
@@ -120,72 +214,42 @@ class Day8Spec : Spek({
                 }
             }
         }
+        describe("example input") {
+            given("an initial rectancle and some input") {
+                val initialDisplay = createDisplay(7, 3)
+                val input = """
+                    rect 3x2
+                    rotate column x=1 by 0
+                    rotate column x=1 by 1
+                    rotate row y=0 by 4
+                    rotate column x=1 by 1
+                    """
+                val commands = parseKeypadCommands(parseTrimedLines(input))
+                val result = initialDisplay.execute(commands)
+                it("should show the correct pixels after executing all commands") {
+                    result.convertToString() `should equal`
+                            """
+                            .#..#.#
+                            #.#....
+                            .#.....
+                            """.trimIndent()
+                }
+                it("should have 6 pixels") {
+                    result.countPixels() `should equal` 6
+                }
+            }
+        }
         describe("exercise") {
             given("extercise input") {
                 val input = readResource("day08Input.txt")
-                val inputList = parseTrimedLines(input)
-//                it("should calculate the correct result") {
-//                    val result = inputList.filter { checkIp7Adress(it) }.count()
-//                    println(result)
-//                    result `should equal` 105
-//                }
+                val commands = parseKeypadCommands(parseTrimedLines(input))
+                val initialDisplay = createDisplay(50, 6)
+                val result = initialDisplay.execute(commands)
+                println(result.countPixels())
+                println(result.convertToString())
+                result.countPixels() `should equal` 115
             }
         }
     }
 })
 
-fun Array<CharArray>.rect(xInit: Int, yInit: Int): Array<CharArray> =
-        mapIndexed { y, row ->
-            row.mapIndexed { x, _ ->
-                if (x < xInit && y < yInit) '#'
-                else this[y][x]
-            }
-            .toCharArray()
-        }.toTypedArray()
-
-fun createDisplay(xSize: Int, ySize: Int) =
-        Array(ySize) {
-            CharArray(xSize) {
-                '.'
-            }
-        }
-
-private fun Array<CharArray>.rotateX(xToRotate: Int, decr: Int): Array<CharArray> =
-        mapIndexed { y, row ->
-            row.mapIndexed { x, _ ->
-                if (x == xToRotate) {
-                    this[rotateIndex(y, decr, size)][x]
-                } else this[y][x]
-            }
-            .toCharArray()
-        }.toTypedArray()
-
-private fun Array<CharArray>.rotateY(yToRotate: Int, decr: Int): Array<CharArray> =
-        mapIndexed { y, row ->
-            row.mapIndexed { x, _ ->
-                if (y == yToRotate) {
-                    this[y][rotateIndex(x, decr, row.size)]
-                } else this[y][x]
-            }.toCharArray()
-        }.toTypedArray()
-
-private fun rotateIndex(index: Int, decr: Int, size: Int): Int {
-    val h = (index - decr) % size
-    if (h < 0) return size + h
-    else return h
-}
-
-private fun Array<CharArray>.convertToString() = mapIndexed { index, col ->
-        col.joinToString("") +
-                if (index < size - 1) "\n"
-                else ""
-    }
-    .joinToString("")
-
-private fun Array<CharArray>.countPixels() =
-        map {
-            it.count {
-                it == '#'
-            }
-        }
-        .sum()
