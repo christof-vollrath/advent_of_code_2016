@@ -240,7 +240,7 @@ class Day8Spec : Spek({
             }
         }
         describe("exercise") {
-            given("extercise input") {
+            given("exercise input") {
                 val input = readResource("day08Input.txt")
                 val commands = parseKeypadCommands(parseTrimedLines(input))
                 val initialDisplay = createDisplay(50, 6)
