@@ -42,70 +42,11 @@ In this configuration, bot number 2 is responsible for comparing value-5 microch
 Based on your instructions, what is the number of the bot that is responsible
 for comparing value-61 microchips with value-17 microchips?
 
+--- Part Two ---
+
+What do you get if you multiply together the values of one chip in each of outputs 0, 1, and 2?
+
  */
-
-class Day10Spec : Spek({
-
-    describe("part 1") {
-        describe("example") {
-            given("the bot factory") {
-                val factory = BotFactory()
-                var responsibleBot: Int? = null
-                factory.tracer = { bot, low, high -> if (low == 2 && high == 5) responsibleBot = bot }
-                with(factory) {
-                    valueGoes(5, bot(2))
-                    botGives(bot(2), bot(1), bot(0))
-                    valueGoes(3, bot(1))
-                    botGives(bot(1), output(1), bot(0))
-                    botGives(bot(0), output(2), output(0))
-                    valueGoes(2, bot(2))
-                }
-                it("should have put the correct values into the output bins") {
-                    factory.outputBins[0]!!.chip `should equal` 5
-                    factory.outputBins[1]!!.chip `should equal` 2
-                    factory.outputBins[2]!!.chip `should equal` 3
-                }
-                it("should find the correct bot") {
-                    responsibleBot `should equal` 2
-                }
-            }
-            given("the bot factory initalized from string input") {
-                val factory = BotFactory()
-                var responsibleBot: Int? = null
-                factory.tracer = { bot, low, high -> if (low == 2 && high == 5) responsibleBot = bot }
-                factory.init("""
-                    value 5 goes to bot 2
-                    bot 2 gives low to bot 1 and high to bot 0
-                    value 3 goes to bot 1
-                    bot 1 gives low to output 1 and high to bot 0
-                    bot 0 gives low to output 2 and high to output 0
-                    value 2 goes to bot 2
-                    """)
-                it("should have put the correct values into the output bins") {
-                    factory.outputBins[0]!!.chip `should equal` 5
-                    factory.outputBins[1]!!.chip `should equal` 2
-                    factory.outputBins[2]!!.chip `should equal` 3
-                }
-                it("should find the correct bot") {
-                    responsibleBot `should equal` 2
-                }
-            }
-        }
-        describe("exercise") {
-            given("exercise input") {
-                val input = readResource("day10Input.txt")
-                val factory = BotFactory()
-                var responsibleBot: Int? = null
-                factory.tracer = { bot, low, high -> if (low == 17 && high == 61) responsibleBot = bot }
-                factory.init(input)
-                println(responsibleBot)
-                it("should find the correct bot") {
-                    responsibleBot `should equal` 56
-                }
-            }
-        }
-    }
-})
 
 interface Storage {
     fun put(chip: Int)
@@ -119,22 +60,15 @@ class Bot(val nr: Int, val botFactory: BotFactory) : Storage {
         process()
     }
     fun process() {
-        if (chips.size >= 2) {
+        if (chips.size >= 2 && low != null && high != null) {
             val sortedChips = chips.sorted()
-            val lowStorage = low
-            val highStorage = high
-            if (lowStorage != null && highStorage != null) {
-                val lowValue = sortedChips[0]
-                val highValue = sortedChips[1]
-                lowStorage.put(lowValue)
-                highStorage.put(highValue)
-                chips.removeAll({ true })
-                botFactory.tracer?.invoke(nr, lowValue, highValue)
-            }
+            low?.put(sortedChips[0])
+            high?.put(sortedChips[1])
+            chips.clear()
+            botFactory.tracer?.invoke(this, sortedChips[0], sortedChips[1])
         }
     }
 }
-
 class OutputBin(val nr: Int) : Storage {
     var chip: Int? = null
     override fun put(chip: Int) {
@@ -142,7 +76,7 @@ class OutputBin(val nr: Int) : Storage {
     }
 }
 
-typealias Tracer = (bot: Int, low: Int, high: Int) -> Unit
+typealias Tracer = (bot: Bot, lowValue: Int, highValue: Int) -> Unit
 class BotFactory {
     val bots = mutableMapOf<Int, Bot>()
     val outputBins = mutableMapOf<Int, OutputBin>()
@@ -151,14 +85,11 @@ class BotFactory {
     fun valueGoes(value: Int, storage: Storage) {
         storage.put(value)
     }
-
     fun botGives(bot: Bot, low: Storage, high: Storage) {
         bot.low = low
         bot.high = high
         bot.process()
     }
-
-
     fun bot(nr: Int): Bot =
             with(bots[nr]) {
                 if (this != null) this
@@ -168,7 +99,6 @@ class BotFactory {
                     bot
                 }
             }
-
     fun output(nr: Int): OutputBin =
             with(outputBins[nr]) {
                 if (this != null) this
@@ -190,7 +120,6 @@ class BotFactory {
             }
         }
     }
-
     private fun initStorage(storageType: String, nr: Int) =
             when(storageType) {
                 "bot" -> bot(nr)
@@ -198,3 +127,71 @@ class BotFactory {
                 else -> throw IllegalArgumentException("unkown storage type $storageType")
             }
 }
+
+class Day10Spec : Spek({
+
+    describe("part 1 & 2") {
+        describe("example") {
+            given("the bot factory") {
+                val factory = BotFactory()
+                var responsibleBot: Bot? = null
+                factory.tracer = { bot, lowValue, highValue -> if (lowValue == 2 && highValue == 5) responsibleBot = bot }
+                with(factory) {
+                    valueGoes(5, bot(2))
+                    botGives(bot(2), bot(1), bot(0))
+                    valueGoes(3, bot(1))
+                    botGives(bot(1), output(1), bot(0))
+                    botGives(bot(0), output(2), output(0))
+                    valueGoes(2, bot(2))
+                }
+                it("should have put the correct values into the output bins") {
+                    factory.outputBins[0]!!.chip `should equal` 5
+                    factory.outputBins[1]!!.chip `should equal` 2
+                    factory.outputBins[2]!!.chip `should equal` 3
+                }
+                it("should find the correct bot") {
+                    responsibleBot?.nr `should equal` 2
+                }
+            }
+            given("the bot factory initalized from string input") {
+                val factory = BotFactory()
+                var responsibleBot: Bot? = null
+                factory.tracer = { bot, lowValue, highValue -> if (lowValue == 2 && highValue == 5) responsibleBot = bot }
+                factory.init("""
+                    value 5 goes to bot 2
+                    bot 2 gives low to bot 1 and high to bot 0
+                    value 3 goes to bot 1
+                    bot 1 gives low to output 1 and high to bot 0
+                    bot 0 gives low to output 2 and high to output 0
+                    value 2 goes to bot 2
+                    """)
+                it("should have put the correct values into the output bins") {
+                    factory.outputBins[0]!!.chip `should equal` 5
+                    factory.outputBins[1]!!.chip `should equal` 2
+                    factory.outputBins[2]!!.chip `should equal` 3
+                }
+                it("should find the correct bot") {
+                    responsibleBot?.nr `should equal` 2
+                }
+            }
+        }
+        describe("exercise") {
+            given("exercise input") {
+                val input = readResource("day10Input.txt")
+                val factory = BotFactory()
+                var responsibleBot: Bot? = null
+                factory.tracer = { bot, lowValue, highValue -> if (lowValue == 17 && highValue == 61) responsibleBot = bot }
+                factory.init(input)
+                println(responsibleBot?.nr)
+                it("should find the correct bot") {
+                    responsibleBot?.nr `should equal` 56
+                }
+                it("should have put the correct values into the output bins (part 2)") {
+                    val result = factory.outputBins[0]!!.chip!! * factory.outputBins[1]!!.chip!! * factory.outputBins[2]!!.chip!!
+                    println(result)
+                    result `should equal` 7847
+                }
+            }
+        }
+    }
+})
