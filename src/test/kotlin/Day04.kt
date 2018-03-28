@@ -3,7 +3,6 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.it
 import org.jetbrains.spek.api.dsl.on
-import org.jetbrains.spek.api.dsl.xdescribe
 import org.jetbrains.spek.data_driven.data
 import org.jetbrains.spek.data_driven.on as onData
 
@@ -215,8 +214,8 @@ class Day4Spec : Spek({
             val result = parseTrimedLines(input)
                     .map { parseEncryptedName(it) }
                     .filter { it.checkEncryptedName() }
-                    .filter { decryptName(it).startsWith("northpole") }
-                    .first().sectorId
+                    .first { decryptName(it).startsWith("northpole") }
+                    .sectorId
             println(result)
             result `should equal` 991
         }

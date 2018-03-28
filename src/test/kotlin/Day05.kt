@@ -95,7 +95,7 @@ fun doorPassword2(input: String, length: Int, startIndex: Int = 0): String {
 fun md5(input: String) = md5(stringToAsciiBytes(input))
 fun md5(input: ByteArray): String {
     val md = MessageDigest.getInstance("MD5")
-    md.update(input);
+    md.update(input)
     val digest = md.digest()
     return bytesToHexString(digest)
 }

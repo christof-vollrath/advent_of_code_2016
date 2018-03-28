@@ -136,8 +136,8 @@ private fun CodeDisplay.rotateY(yToRotate: Int, decr: Int): CodeDisplay =
 
 private fun rotateIndex(index: Int, decr: Int, size: Int): Int {
     val h = (index - decr) % size
-    if (h < 0) return size + h
-    else return h
+    return if (h < 0) size + h
+    else h
 }
 
 fun CodeDisplay.execute(commands: List<CodeDisplayCommand>): CodeDisplay =

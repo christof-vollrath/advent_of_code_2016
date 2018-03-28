@@ -80,10 +80,10 @@ fun findAbas(part: String) = splitNgrams(part, 3).filter { checkAba(it) }
 
 fun checkAba(string: String) = string[0] != string[1] && string[0] == string[2]
 
-fun splitNgrams(string: String, length: Int) = string.withIndex().map {
+fun splitNgrams(string: String, length: Int) = string.withIndex().mapNotNull {
     if (it.index <= string.length - length) ngram(string, it.index, length)
     else null
-}.filterNotNull()
+}
 
 fun ngram(string: String, index: Int, length: Int) =
         (index until index+length).map { string[it] }.joinToString("")
@@ -150,7 +150,7 @@ class Day7Spec : Spek({
             val testData = arrayOf(
                     //    string     lenght               abas
                     //--|-----------|-------|----------------------
-                    data("",       3, emptyList<String>()),
+                    data("",       3, emptyList()),
                     data("xyz",    3, listOf("xyz")),
                     data("abcde",  3, listOf("abc", "bcd", "cde")),
                     data("ioxxoj", 4, listOf("ioxx", "oxxo", "xxoj"))
@@ -194,8 +194,8 @@ class Day7Spec : Spek({
             val testData = arrayOf(
                     //    part              abas
                     //--|-----------------|----------------------
-                    data("",            emptyList<String>()),
-                    data("xyz",         emptyList<String>()),
+                    data("",            emptyList()),
+                    data("xyz",         emptyList()),
                     data("aba",         listOf("aba")),
                     data("aabaxyxzabc", listOf("aba", "xyx"))
             )
