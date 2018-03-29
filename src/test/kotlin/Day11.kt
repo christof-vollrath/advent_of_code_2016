@@ -1,9 +1,7 @@
 import org.amshove.kluent.`should be true`
 import org.amshove.kluent.`should equal`
 import org.jetbrains.spek.api.Spek
-import org.jetbrains.spek.api.dsl.describe
-import org.jetbrains.spek.api.dsl.given
-import org.jetbrains.spek.api.dsl.it
+import org.jetbrains.spek.api.dsl.*
 import org.jetbrains.spek.data_driven.data
 import org.jetbrains.spek.data_driven.on as onData
 
@@ -214,6 +212,28 @@ class Day11Spec : Spek({
                             )
                 }
             }
+            given("the starting arrangement") {
+                val arrangement = Arrangement(1, listOf(
+                        setOf(
+                                Microchip(Radioisotope.HYDROGEN),
+                                Microchip(Radioisotope.LITHIUM)
+                        ),
+                        setOf(
+                                Generator(Radioisotope.HYDROGEN)
+                        ),
+                        setOf(
+                                Generator(Radioisotope.LITHIUM)
+                        ),
+                        setOf()
+                ))
+                it("should terminate with 11 steps") {
+                    val steps = BreadthFirstSearcher(arrangement,
+                            { checkArrangement(it, allEquipment) },
+                            ::createMoves, :: applyMove
+                    ).search()
+                    steps.size - 1 `should equal` 11
+                }
+            }
         }
         describe("apply move") {
             given("an arrangement and a move") {
@@ -265,7 +285,7 @@ class Day11Spec : Spek({
             }
 
         }
-        describe("combine equipment for elevator more") {
+        describe("combine equipment for elevator move") {
             val testData = arrayOf(
                     //    equipment             | moves
                     //--|-----------------------|--------------------------------
@@ -295,8 +315,127 @@ class Day11Spec : Spek({
             }
 
         }
+        describe("microchip fried") {
+            val testData = arrayOf(
+                    //    equipment             | fried
+                    //--|-----------------------|--------------------------------
+                    data(setOf(),                 false),
+                    data(setOf<Equipment>(Microchip(Radioisotope.HYDROGEN)), false),
+                    data(setOf<Equipment>(Generator(Radioisotope.HYDROGEN)), false),
+                    data(setOf(Microchip(Radioisotope.HYDROGEN),
+                            Generator(Radioisotope.HYDROGEN)), false),
+                    data(setOf(Microchip(Radioisotope.HYDROGEN),
+                            Generator(Radioisotope.LITHIUM)), true),
+                    data(setOf(Microchip(Radioisotope.HYDROGEN),
+                            Generator(Radioisotope.HYDROGEN),
+                            Generator(Radioisotope.LITHIUM)), false),
+                    data(setOf(Microchip(Radioisotope.HYDROGEN),
+                            Generator(Radioisotope.THULIUM),
+                            Generator(Radioisotope.LITHIUM)), true),
+                    data(setOf(Microchip(Radioisotope.HYDROGEN),
+                            Microchip(Radioisotope.LITHIUM),
+                            Generator(Radioisotope.HYDROGEN)), true)
+                    )
+            onData("input %s", with = *testData) { equipment, fried ->
+                it("returns $fried") {
+                    checkFries(equipment) `should equal` fried
+                }
+            }
+        }
+        describe("normlize arrangement") {
+            given("an arrangement") {
+                val arrangement = Arrangement(3, listOf(
+                        setOf(),
+                        setOf(
+                                Microchip(Radioisotope.LITHIUM)
+                        ),
+                        setOf(
+                                Microchip(Radioisotope.HYDROGEN)
+                        ),
+                        setOf(
+                                Generator(Radioisotope.HYDROGEN),
+                                Generator(Radioisotope.LITHIUM)
+                        )
+                ))
+                it("should be normalized") {
+                    normalizeArrangement(arrangement) `should equal` NormalizedArrangement(3, listOf(Pair(4,2), Pair(4,3)))
+                }
+            }
+        }
+        describe("exercise") {
+            given("the starting arrangement") {
+                val arrangement = Arrangement(1, listOf(
+                        setOf(
+                                Generator(Radioisotope.THULIUM),
+                                Microchip(Radioisotope.THULIUM),
+                                Generator(Radioisotope.PLUTONIUM),
+                                Generator(Radioisotope.STRONTIUM)
+                        ),
+                        setOf(
+                                Microchip(Radioisotope.PLUTONIUM),
+                                Microchip(Radioisotope.STRONTIUM)
+                        ),
+                        setOf(
+                                Generator(Radioisotope.PROMETHIUM),
+                                Microchip(Radioisotope.PROMETHIUM),
+                                Generator(Radioisotope.RUTHENIUM),
+                                Microchip(Radioisotope.RUTHENIUM)
+                        ),
+                        setOf()
+                ))
+                val allExerciseEquipment = setOf(
+                        Generator(Radioisotope.THULIUM),
+                        Microchip(Radioisotope.THULIUM),
+                        Generator(Radioisotope.PLUTONIUM),
+                        Generator(Radioisotope.STRONTIUM),
+                        Microchip(Radioisotope.PLUTONIUM),
+                        Microchip(Radioisotope.STRONTIUM),
+                        Generator(Radioisotope.PROMETHIUM),
+                        Microchip(Radioisotope.PROMETHIUM),
+                        Generator(Radioisotope.RUTHENIUM),
+                        Microchip(Radioisotope.RUTHENIUM)
+                )
+
+                it("should terminate") {
+                    val steps = BreadthFirstSearcher(arrangement,
+                            { checkArrangement(it, allExerciseEquipment) },
+                            ::createMoves, :: applyMove
+                    ).search()
+                    steps.size - 1 `should equal` 11
+                }
+            }
+        }
     }
 })
+
+fun normalizeArrangement(arrangement: Arrangement) = NormalizedArrangement(arrangement.elevator, normalizeFloors(arrangement.floors))
+
+fun normalizeFloors(floors: List<Set<Equipment>>) =
+    floors.mapIndexed { index, floorEquipment ->
+        floorEquipment.filter { it is Generator }
+                .map {
+                    Pair(index+1, findMicrochipFloor(floors, it.isotope) + 1)
+                }
+    }.flatten().sortedWith(compareBy({ it.first }, { it.second }))
+
+
+fun findMicrochipFloor(floors: List<Set<Equipment>>, isotope: Radioisotope): Int {
+    floors.forEachIndexed { index, floor ->
+        if (floor.contains(Microchip(isotope))) return@findMicrochipFloor index
+    }
+    throw IllegalStateException("No corresponding microchip found")
+}
+
+
+data class NormalizedArrangement(val elevator: Int, val equipment: List<Pair<Int, Int>>)
+
+fun checkFries(equipment: Set<Equipment>): Boolean {
+    val generators = equipment.filter { it is Generator }
+    if (generators.size == 0) return false
+    val microchips = equipment.filter { it is Microchip }
+    if (microchips.size == 0) return false
+    return ! microchips.all { equipment.contains(Generator(it.isotope))}
+}
 
 class BreadthFirstSearcher(val arrangement: Arrangement,
                            val check: (Arrangement) -> Boolean,
@@ -304,10 +443,14 @@ class BreadthFirstSearcher(val arrangement: Arrangement,
                            val applyMove: (Arrangement, ElevatorMove) -> Arrangement) {
     fun search(): List<Pair<ElevatorMove?, Arrangement>> = search(listOf(listOf(Pair(null, arrangement))))
     private fun search(toCheck: List<List<Pair<ElevatorMove?, Arrangement>>>): List<Pair<ElevatorMove?, Arrangement>> {
-        val found = toCheck.filter { check(it.last().second)}
-        return if (found.isNotEmpty()) found.first()
-        else {
-            val nextToCheck = toCheck.flatMap { moves ->
+        val checkedArrangements = mutableSetOf<NormalizedArrangement>()
+        var checking = toCheck.toSet()
+        while(true) {
+            if (checking.size == 0) throw IllegalArgumentException("Nothing found in search")
+            val found = checking.filter { check(it.last().second)}
+            if (found.isNotEmpty()) return found.first()
+            checkedArrangements += checking.map { normalizeArrangement(it.last().second) }
+            val nextToCheck = checking.flatMap { moves ->
                 val lastArrangement = moves.last().second
                 val nextMoves = createMoves(lastArrangement)
                 nextMoves.map { nextMove: ElevatorMove ->
@@ -315,16 +458,21 @@ class BreadthFirstSearcher(val arrangement: Arrangement,
                     moves + Pair(nextMove, nextArrangement)
                 }
             }
-            search(nextToCheck)
+            checking = nextToCheck.filter {
+                ! checkedArrangements.contains(normalizeArrangement(it.last().second))
+            }.toSet() // Avoid loops
+            println("breadth ${checking.size} checked ${checkedArrangements.size} before optimization ${nextToCheck.size}")
         }
     }
 }
 
-enum class Radioisotope { HYDROGEN, LITHIUM, THULIUM }
+enum class Radioisotope { HYDROGEN, LITHIUM, THULIUM, PLUTONIUM, STRONTIUM, PROMETHIUM, RUTHENIUM }
 
-sealed class Equipment
-data class Generator(val isotope: Radioisotope) : Equipment()
-data class Microchip(val isotope: Radioisotope) : Equipment()
+sealed class Equipment {
+    abstract val isotope: Radioisotope
+}
+data class Generator(override val isotope: Radioisotope) : Equipment()
+data class Microchip(override val isotope: Radioisotope) : Equipment()
 
 data class Arrangement(val elevator: Int, val floors: List<Set<Equipment>>)
 
@@ -345,19 +493,26 @@ fun applyMove(arrangement: Arrangement, elevatorMove: ElevatorMove): Arrangement
     return Arrangement(elevatorMove.toFloor, floors)
 }
 
-fun createMoves(arrangement: Arrangement): Set<ElevatorMove> =
-        if (arrangement.elevator < arrangement.floors.size)
-            combineEquipmentForMove(arrangement.floors[arrangement.elevator-1])
-                    .map {
-                        ElevatorMove(arrangement.elevator, arrangement.elevator+1, it)
-                    }.toSet()
-        else setOf<ElevatorMove>() +
-        if (arrangement.elevator > 1)
-            combineEquipmentForMove(arrangement.floors[arrangement.elevator-1])
-            .map {
-                ElevatorMove(arrangement.elevator, arrangement.elevator-1, it)
-            }.toSet()
-        else setOf()
+fun createMoves(arrangement: Arrangement): Set<ElevatorMove> {
+    val upMoves = if (arrangement.elevator < arrangement.floors.size)
+        combineEquipmentForMove(arrangement.floors[arrangement.elevator-1])
+                .map {
+                    ElevatorMove(arrangement.elevator, arrangement.elevator+1, it)
+                }.toSet()
+    else setOf<ElevatorMove>()
+    val downMoves = if (arrangement.elevator > 1)
+        combineEquipmentForMove(arrangement.floors[arrangement.elevator-1])
+                .map {
+                    ElevatorMove(arrangement.elevator, arrangement.elevator-1, it)
+                }.toSet()
+    else setOf()
+    val allMoves = upMoves + downMoves
+    return allMoves.filter {
+        !checkFries(it.content) && // Nothing fries in the elevator
+        !checkFries(arrangement.floors[it.fromFloor-1] - it.content) && // Nothing fries in the old floor
+                !checkFries(arrangement.floors[it.toFloor-1] + it.content) // Nothing fries in the new floor
+    }.toSet()
+}
 
 fun combineEquipmentForMove(equipments: Set<Equipment>) =
         equipments.flatMap {equipment1 ->
