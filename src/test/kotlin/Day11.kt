@@ -183,7 +183,7 @@ class Day11Spec : Spek({
                             { checkArrangement(it, allEquipment) },
                             ::createMoves, :: applyMove
                     ).search()
-                    steps.size `should equal` 1
+                    steps.size `should equal` 0
                 }
             }
             given("the arrangement before final") {
@@ -203,8 +203,8 @@ class Day11Spec : Spek({
                             { checkArrangement(it, allEquipment) },
                             ::createMoves, :: applyMove
                     ).search()
-                    steps.size `should equal` 2
-                    steps[1].first `should equal`
+                    steps.size `should equal` 1
+                    steps[0] `should equal`
                             ElevatorMove(3, 4, setOf(
                                     Microchip(Radioisotope.HYDROGEN),
                                     Microchip(Radioisotope.LITHIUM)
@@ -231,7 +231,7 @@ class Day11Spec : Spek({
                             { checkArrangement(it, allEquipment) },
                             ::createMoves, :: applyMove
                     ).search()
-                    steps.size - 1 `should equal` 11
+                    steps.size `should equal` 11
                 }
             }
         }
@@ -441,27 +441,26 @@ class BreadthFirstSearcher(val arrangement: Arrangement,
                            val check: (Arrangement) -> Boolean,
                            val createMoves: (Arrangement) -> Set<ElevatorMove>,
                            val applyMove: (Arrangement, ElevatorMove) -> Arrangement) {
-    fun search(): List<Pair<ElevatorMove?, Arrangement>> = search(listOf(listOf(Pair(null, arrangement))))
-    private fun search(toCheck: List<List<Pair<ElevatorMove?, Arrangement>>>): List<Pair<ElevatorMove?, Arrangement>> {
+    fun search(): List<ElevatorMove> = search(setOf(Pair(listOf<ElevatorMove>(), arrangement)))
+    private fun search(toCheck: Set<Pair<List<ElevatorMove>, Arrangement>>): List<ElevatorMove> {
         val checkedArrangements = mutableSetOf<NormalizedArrangement>()
-        var checking = toCheck.toSet()
+        var checking = toCheck
         while(true) {
             if (checking.size == 0) throw IllegalArgumentException("Nothing found in search")
-            val found = checking.filter { check(it.last().second)}
-            if (found.isNotEmpty()) return found.first()
-            checkedArrangements += checking.map { normalizeArrangement(it.last().second) }
-            val nextToCheck = checking.flatMap { moves ->
-                val lastArrangement = moves.last().second
+            val found = checking.filter { check(it.second)}
+            if (found.isNotEmpty()) return found.first().first
+            checkedArrangements += checking.map { normalizeArrangement(it.second) }
+            checking = checking.asSequence().flatMap { checked ->
+                val lastArrangement = checked.second
                 val nextMoves = createMoves(lastArrangement)
                 nextMoves.map { nextMove: ElevatorMove ->
                     val nextArrangement: Arrangement = applyMove(lastArrangement, nextMove)
-                    moves + Pair(nextMove, nextArrangement)
-                }
-            }
-            checking = nextToCheck.filter {
-                ! checkedArrangements.contains(normalizeArrangement(it.last().second))
+                    Pair(checked.first + nextMove, nextArrangement)
+                }.asSequence()
+            }.filter {
+                ! checkedArrangements.contains(normalizeArrangement(it.second))
             }.toSet() // Avoid loops
-            println("breadth ${checking.size} checked ${checkedArrangements.size} before optimization ${nextToCheck.size}")
+            println("breadth ${checking.size} checked ${checkedArrangements.size}")
         }
     }
 }
