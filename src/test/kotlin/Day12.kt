@@ -55,7 +55,8 @@ After executing the assembunny code in your puzzle input, what value is left in 
 
  */
 
-typealias Inp = (Map<Char, Int>) -> Int
+typealias Registers = Map<Char, Int>
+typealias Inp = (Registers) -> Int
 typealias Instr = (Cpu) -> Cpu
 
 class Day12Spec : Spek({
@@ -79,10 +80,43 @@ class Day12Spec : Spek({
                 cpu.registers['a'] `should equal` 42
             }
         }
+        given("copy instruction with constant as input string") {
+            val cpu = Cpu()
+            val copyInstr: Instr = parseCpuInstruction("cpy 41 a")
+            it("should copy value to register") {
+                copyInstr(cpu)
+                cpu.pc `should equal` 1
+                cpu.registers['a'] `should equal` 41
+            }
+        }
+        given("copy instruction with register as input string") {
+            val cpu = Cpu(registers = mutableMapOf('b' to 42))
+            val copyInstr: Instr = parseCpuInstruction("cpy b a")
+            it("should copy register to other register") {
+                copyInstr(cpu)
+                cpu.pc `should equal` 1
+                cpu.registers['a'] `should equal` 42
+            }
+        }
     }
 })
 
-fun ref(registers: Map<Char, Int>, c: Char): Int = registers[c]!!
+fun parseCpuInstruction(instrStr: String): Instr {
+    val instrParts = instrStr.split(" ")
+    val (instrCode, from, to) = instrParts
+    return when(instrCode) {
+        "cpy" -> { cpu -> cpy(cpu, parseRef(from), to[0]) }
+        else -> throw IllegalArgumentException("Unkown code $instrCode")
+    }
+}
+
+fun parseRef(refStr: String): (Registers) -> Int {
+    val intValue = refStr.toIntOrNull()
+    if (intValue != null) return { intValue }
+    else return { registers -> ref(registers, refStr[0]) }
+}
+
+fun ref(registers: Registers, c: Char): Int = registers[c]!!
 
 fun cpy(cpu: Cpu, input: Inp, c: Char): Cpu = cpu.apply() {
     registers[c] = input(cpu.registers)
