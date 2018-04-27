@@ -53,18 +53,101 @@ When you move past the last instruction, the program halts.
 
 After executing the assembunny code in your puzzle input, what value is left in register a?
 
+--- Part Two ---
+
+As you head down the fire escape to the monorail, you notice it didn't start;
+register c needs to be initialized to the position of the ignition key.
+
+If you instead initialize register c to be 1, what value is now left in register a?
+
  */
 
-typealias Registers = Map<Char, Int>
+data class Cpu(var pc: Int = 0, val registers: Registers = mutableMapOf())
+
+typealias Registers = MutableMap<Char, Int>
 typealias Inp = (Registers) -> Int
 typealias Instr = (Cpu) -> Cpu
+
+fun parseCpuCommands(lines: List<String>) = lines.map { parseCpuInstruction(it) }
+
+fun parseCpuInstruction(instrStr: String): Instr {
+    val instrParts = instrStr.split(" ")
+    val instrCode = instrParts[0]
+    when(instrCode) {
+        "cpy" -> {
+            val (_, refStr, to) = instrParts
+            val ref = parseRef(refStr)
+            val toReg = parseRegister(to)
+            return { cpu -> cpy(cpu, ref, toReg) }
+        }
+        "jnz" -> {
+            val (_, refStr, toStr) = instrParts
+            val ref = parseRef(refStr)
+            val to = parseRef(toStr)
+            return { cpu -> jnz(cpu, ref, to) }
+        }
+        "inc" -> return parseIncDec(true, instrParts)
+        "dec" -> return parseIncDec(false, instrParts)
+        else -> throw IllegalArgumentException("Unkown code $instrCode")
+    }
+}
+
+private fun parseIncDec(dec: Boolean, instrParts: List<String>): (Cpu) -> Cpu {
+    val regStr = instrParts[1]
+    val reg = parseRegister(regStr)
+    if (dec) return { cpu -> inc(cpu, reg) }
+    else return { cpu -> dec(cpu, reg) }
+}
+
+fun parseRef(refStr: String): Inp {
+    val intValue = refStr.toIntOrNull()
+    if (intValue != null) return { intValue }
+    else return { registers -> ref(registers, parseRegister(refStr)) }
+}
+
+fun parseRegister(to: String) = to[0]
+
+fun ref(registers: Registers, c: Char): Int = registers[c] ?: 0
+
+fun cpy(cpu: Cpu, input: Inp, c: Char): Cpu = cpu.apply() {
+    registers[c] = input(cpu.registers)
+    incrPc(cpu)
+}
+
+
+fun jnz(cpu: Cpu, ref: Inp, incr: Inp): Cpu = cpu.apply() {
+    if (ref(registers) != 0) cpu.pc += incr(registers)
+    else incrPc(cpu)
+}
+
+fun inc(cpu: Cpu, reg: Char): Cpu = cpu.apply() {
+    registers[reg] = (registers[reg] ?: 0) + 1
+    incrPc(cpu)
+}
+
+fun dec(cpu: Cpu, reg: Char): Cpu = cpu.apply() {
+    registers[reg] = (registers[reg] ?: 0) - 1
+    incrPc(cpu)
+}
+
+private fun incrPc(cpu: Cpu) {
+    cpu.pc++
+}
+
+fun executeCpuCommands(cmds: List<Instr>, cpu: Cpu = Cpu(), debug: Boolean = false): Cpu {
+    while(cpu.pc in 0 until cmds.size) {
+        cmds[cpu.pc](cpu)
+        if (debug) println(cpu)
+    }
+    return cpu
+}
 
 class Day12Spec : Spek({
 
     describe("part 1") {
         given("copy instruction with constant") {
             val cpu = Cpu()
-            val copyInstr: Instr = { cpy(it, { 41 }, 'a')}
+            val copyInstr: Instr = { cpy(it, { 41 }, 'a') }
             it("should copy value to register") {
                 copyInstr(cpu)
                 cpu.pc `should equal` 1
@@ -73,7 +156,7 @@ class Day12Spec : Spek({
         }
         given("copy instruction with register") {
             val cpu = Cpu(registers = mutableMapOf('b' to 42))
-            val copyInstr: Instr = { cpy(it, { ref(it, 'b') }, 'a')}
+            val copyInstr: Instr = { cpy(it, { ref(it, 'b') }, 'a') }
             it("should copy register to other register") {
                 copyInstr(cpu)
                 cpu.pc `should equal` 1
@@ -98,31 +181,84 @@ class Day12Spec : Spek({
                 cpu.registers['a'] `should equal` 42
             }
         }
+        given("inc instruction for empty register as input string") {
+            val cpu = Cpu()
+            val incInstr: Instr = parseCpuInstruction("inc a")
+            it("should increment register") {
+                incInstr(cpu)
+                cpu.pc `should equal` 1
+                cpu.registers['a'] `should equal` 1
+            }
+        }
+        given("inc instruction for register with value as input string") {
+            val cpu = Cpu(registers = mutableMapOf('a' to 42))
+            val incInstr: Instr = parseCpuInstruction("inc a")
+            it("should increment register") {
+                incInstr(cpu)
+                cpu.pc `should equal` 1
+                cpu.registers['a'] `should equal` 43
+            }
+        }
+        given("dec instruction as input string") {
+            val cpu = Cpu()
+            val decInstr: Instr = parseCpuInstruction("dec a")
+            it("should decrement register") {
+                decInstr(cpu)
+                cpu.pc `should equal` 1
+                cpu.registers['a'] `should equal` -1
+            }
+        }
+        given("jnz instruction as input string on an empty register") {
+            val cpu = Cpu()
+            val jnzInstr: Instr = parseCpuInstruction("jnz a 2")
+            it("should not jump") {
+                jnzInstr(cpu)
+                cpu.pc `should equal` 1
+            }
+        }
+        given("jnz instruction as input string on a non zero register") {
+            val cpu = Cpu(registers = mutableMapOf('a' to 1))
+            val jnzInstr: Instr = parseCpuInstruction("jnz a 2")
+            it("should not jump") {
+                jnzInstr(cpu)
+                cpu.pc `should equal` 2
+            }
+        }
+        describe("example") {
+            given("the input") {
+                val input = """
+                    cpy 41 a
+                    inc a
+                    inc a
+                    dec a
+                    jnz a 2
+                    dec a
+                    """
+                val commands = parseCpuCommands(parseTrimedLines(input))
+                val result = executeCpuCommands(commands, debug = true)
+                result.registers['a'] `should equal` 42
+            }
+        }
+        describe("exercise") {
+            given("exercise input") {
+                val input = readResource("day12Input.txt")
+                val commands = parseCpuCommands(parseTrimedLines(input))
+                val result = executeCpuCommands(commands)
+                println(result.registers['a'])
+                result.registers['a'] `should equal` 318003
+            }
+        }
+    }
+    describe("part 2") {
+        describe("exercise") {
+            given("exercise input") {
+                val input = readResource("day12Input.txt")
+                val commands = parseCpuCommands(parseTrimedLines(input))
+                val cpu = Cpu(registers = mutableMapOf('c' to 1))
+                val result = executeCpuCommands(commands, cpu)
+                println(result.registers['a'])
+                result.registers['a'] `should equal` 9227657
+            }
+        }
     }
 })
-
-fun parseCpuInstruction(instrStr: String): Instr {
-    val instrParts = instrStr.split(" ")
-    val (instrCode, from, to) = instrParts
-    return when(instrCode) {
-        "cpy" -> { cpu -> cpy(cpu, parseRef(from), to[0]) }
-        else -> throw IllegalArgumentException("Unkown code $instrCode")
-    }
-}
-
-fun parseRef(refStr: String): (Registers) -> Int {
-    val intValue = refStr.toIntOrNull()
-    if (intValue != null) return { intValue }
-    else return { registers -> ref(registers, refStr[0]) }
-}
-
-fun ref(registers: Registers, c: Char): Int = registers[c]!!
-
-fun cpy(cpu: Cpu, input: Inp, c: Char): Cpu = cpu.apply() {
-    registers[c] = input(cpu.registers)
-    cpu.pc++
-}
-
-
-class Cpu(var pc: Int = 0, val registers: MutableMap<Char, Int> = mutableMapOf<Char, Int>())
-
