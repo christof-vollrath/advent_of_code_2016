@@ -62,15 +62,42 @@ Your puzzle input is 1362.
 
  */
 
+
+data class VirtualMaze(val seed: Int) {
+    fun get(x: Int, y: Int): Char = if (createMazeField(seed, x, y)) '#' else '.'
+}
+
+fun printVirtualMaze(maze: VirtualMaze, width: Int, height: Int) =
+        (0 until height).map { y ->
+            (0 until width).map { x ->
+                maze.get(x, y)
+            } .joinToString("")+ '\n'
+        }.joinToString("")
+
+fun Int.countBits(): Int {
+    // Only for positive Int
+    var result = 0
+    var bit = 1
+    while (bit != 0) {
+        if (this and bit > 0) result++
+        bit = bit shl 1
+    }
+    return result
+}
+
+fun createMazeField(seed: Int, x: Int, y: Int) =
+        (seed + mazeSum(x, y)).countBits() % 2 != 0
+
+fun mazeSum(x: Int, y: Int) = x*x + 3*x + 2*x*y + y + y*y
+
 class Day13Spec : Spek({
 
     describe("part 1") {
-        describe("example") {
-            given("the example number 10") {
-                val input = 10
+        describe("example virtual maze") {
+            given("virtual maze with seed 10") {
+                val virtualMaze = VirtualMaze(10)
                 it("should create the correct maze") {
-                    val maze = createMaze(input, width=10, hight=7)
-                    printMaze(maze) `should equal` """
+                    printVirtualMaze(virtualMaze, 10, 7) `should equal` """
                         .#.####.##
                         ..#..#...#
                         #....##...
@@ -116,33 +143,3 @@ class Day13Spec : Spek({
         }
     }
 })
-
-private fun Int.countBits(): Int {
-    // Only for positive Int
-    var result = 0
-    var bit = 1
-    while (bit != 0) {
-        if (this and bit > 0) result++
-        bit = bit shl 1
-    }
-    return result
-}
-
-fun printMaze(maze: Array<Array<Char>>) =
-        maze.map { row ->
-            row.joinToString("")+ '\n'
-        }.joinToString("")
-
-fun createMaze(seed: Int, width: Int, hight: Int): Array<Array<Char>> {
-    val result = Array(hight, { Array(width, { '.' })})
-    for (y in 0 until hight)
-        for (x in 0 until width)
-            result[y][x] = if (createMazeField(seed, x, y)) '#' else '.'
-    return result
-}
-
-fun createMazeField(seed: Int, x: Int, y: Int) =
-        (seed + mazeSum(x, y)).countBits() % 2 != 0
-
-fun mazeSum(x: Int, y: Int) = x*x + 3*x + 2*x*y + y + y*y
-
