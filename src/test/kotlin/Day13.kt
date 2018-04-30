@@ -67,12 +67,15 @@ data class VirtualMaze(val seed: Int) {
     fun get(x: Int, y: Int): Char = if (createMazeField(seed, x, y)) '#' else '.'
 }
 
-fun printVirtualMaze(maze: VirtualMaze, width: Int, height: Int) =
-        (0 until height).map { y ->
-            (0 until width).map { x ->
-                maze.get(x, y)
-            } .joinToString("")+ '\n'
-        }.joinToString("")
+fun printVirtualMaze(maze: VirtualMaze, width: Int, height: Int, path: MazePath? = null): String {
+    val coordinates = path?.toCoordinates()?.toSet()
+    return (0 until height).map { y ->
+        (0 until width).map { x ->
+            if (coordinates != null && coordinates.contains(Pair(x,y))) 'O'
+            else maze.get(x, y)
+        } .joinToString("")+ '\n'
+    }.joinToString("")
+}
 
 fun Int.countBits(): Int {
     // Only for positive Int
@@ -104,6 +107,24 @@ class Day13Spec : Spek({
                         ###.#.###.
                         .##..#..#.
                         ..##....#.
+                        #...##.###
+
+                        """.trimIndent()
+                }
+            }
+        }
+        describe("example path") {
+            given("virtual maze with seed 10") {
+                val virtualMaze = VirtualMaze(10)
+                it("should find path") {
+                    val path = findPath(virtualMaze, Pair(1, 1), Pair(7, 4))
+                    printVirtualMaze(virtualMaze, 10, 7, path) `should equal` """
+                        .#.####.##
+                        .O#..#...#
+                        #OOO.##...
+                        ###O#.###.
+                        .##OO#OO#.
+                        ..##OOO.#.
                         #...##.###
 
                         """.trimIndent()
@@ -143,3 +164,24 @@ class Day13Spec : Spek({
         }
     }
 })
+
+fun findPath(virtualMaze: VirtualMaze, start: Pair<Int, Int>, goal: Pair<Int, Int>): MazePath = //TODO
+        MazePath(start, goal, listOf(
+                Pair(0,1), Pair(1,0), Pair(1,0),
+                Pair(0,1), Pair(0,1), Pair(1,0),
+                Pair(0,1), Pair(1,0), Pair(1,0),
+                Pair(0,-1), Pair(1,0)
+        ))
+
+data class MazePath(val start: Pair<Int, Int>, val goal: Pair<Int, Int>, val moves: List<Pair<Int, Int>>) {
+    fun toCoordinates(): List<Pair<Int, Int>> {
+        var currentPos = start
+        return listOf(start) + moves.map {
+            currentPos = movePos(currentPos, it)
+            currentPos
+        }
+    }
+
+    private fun movePos(pos: Pair<Int, Int>, move: Pair<Int, Int>): Pair<Int, Int>  =
+            Pair(pos.first + move.first, pos.second + move.second)
+}
