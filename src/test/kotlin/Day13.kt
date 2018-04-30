@@ -1,3 +1,11 @@
+import org.amshove.kluent.`should equal`
+import org.jetbrains.spek.api.Spek
+import org.jetbrains.spek.api.dsl.describe
+import org.jetbrains.spek.api.dsl.given
+import org.jetbrains.spek.api.dsl.it
+import org.jetbrains.spek.data_driven.data
+import org.jetbrains.spek.data_driven.on as onData
+
 /*
 --- Day 13: A Maze of Twisty Little Cubicles ---
 
@@ -53,3 +61,88 @@ What is the fewest number of steps required for you to reach 31,39?
 Your puzzle input is 1362.
 
  */
+
+class Day13Spec : Spek({
+
+    describe("part 1") {
+        describe("example") {
+            given("the example number 10") {
+                val input = 10
+                it("should create the correct maze") {
+                    val maze = createMaze(input, width=10, hight=7)
+                    printMaze(maze) `should equal` """
+                        .#.####.##
+                        ..#..#...#
+                        #....##...
+                        ###.#.###.
+                        .##..#..#.
+                        ..##....#.
+                        #...##.###
+
+                        """.trimIndent()
+                }
+            }
+        }
+        describe("countBits") {
+            val testData = arrayOf(
+                    //    nr    bits
+                    //--|-----|-----------------------------
+                    data(0, 0),
+                    data(1, 1),
+                    data(2, 1),
+                    data(3, 2),
+                    data(4, 1),
+                    data(36, 2),
+                    data(256, 1),
+                    data(255, 8),
+                    data(Int.MAX_VALUE, 31)
+            )
+            onData("input %s", with = *testData) { nr, bits ->
+                    nr.countBits() `should equal` bits
+            }
+        }
+        describe("mazeSum") {
+            val testData = arrayOf(
+                    //    x     y      sum
+                    //--|-----|------|------------
+                    data(0, 0, 0),
+                    data(1, 0, 4),
+                    data(0, 1, 1),
+                    data(3, 2, 36)
+            )
+            onData("input %s", with = *testData) { x, y, sum ->
+                mazeSum(x, y) `should equal` sum
+            }
+        }
+    }
+})
+
+private fun Int.countBits(): Int {
+    // Only for positive Int
+    var result = 0
+    var bit = 1
+    while (bit != 0) {
+        if (this and bit > 0) result++
+        bit = bit shl 1
+    }
+    return result
+}
+
+fun printMaze(maze: Array<Array<Char>>) =
+        maze.map { row ->
+            row.joinToString("")+ '\n'
+        }.joinToString("")
+
+fun createMaze(seed: Int, width: Int, hight: Int): Array<Array<Char>> {
+    val result = Array(hight, { Array(width, { '.' })})
+    for (y in 0 until hight)
+        for (x in 0 until width)
+            result[y][x] = if (createMazeField(seed, x, y)) '#' else '.'
+    return result
+}
+
+fun createMazeField(seed: Int, x: Int, y: Int) =
+        (seed + mazeSum(x, y)).countBits() % 2 != 0
+
+fun mazeSum(x: Int, y: Int) = x*x + 3*x + 2*x*y + y + y*y
+
