@@ -62,9 +62,11 @@ Your puzzle input is 1362.
 
  */
 
+typealias MazeCoord = Pair<Int, Int>
 
 data class VirtualMaze(val seed: Int) {
     fun get(x: Int, y: Int): Char = if (createMazeField(seed, x, y)) '#' else '.'
+    fun get(pos: MazeCoord): Char = get(pos.first, pos.second)
 }
 
 fun printVirtualMaze(maze: VirtualMaze, width: Int, height: Int, path: MazePath? = null): String {
@@ -93,7 +95,54 @@ fun createMazeField(seed: Int, x: Int, y: Int) =
 
 fun mazeSum(x: Int, y: Int) = x*x + 3*x + 2*x*y + y + y*y
 
-class Day13Spec : Spek({
+
+fun findPath(virtualMaze: VirtualMaze, start: MazeCoord, goal: MazeCoord): MazePath =
+        findPathBreathFirst(virtualMaze, start, goal, listOf(MazePath(start, start, emptyList())), emptySet())
+
+fun findPathBreathFirst(virtualMaze: VirtualMaze, start: MazeCoord, goal: MazeCoord, pathes: List<MazePath>, alreadyVisited: Set<MazeCoord>): MazePath {
+    for(path in pathes) {
+        if (path.end == goal) return path
+    }
+    val nextPathes = pathes.flatMap {
+        if (it.end in alreadyVisited) emptyList()
+        else it.nextMazePathes(virtualMaze)
+    }
+    if (nextPathes.isEmpty()) throw IllegalArgumentException("Nothing found")
+     val ends = pathes.map { it.end }
+
+    return findPathBreathFirst(virtualMaze, start, goal, nextPathes, alreadyVisited + ends)
+}
+
+data class MazePath(val start: MazeCoord, val end: MazeCoord, val moves: List<MazeCoord>) {
+    fun toCoordinates(): List<MazeCoord> {
+        var currentPos = start
+        return listOf(start) + moves.map {
+            currentPos = movePos(currentPos, it)
+            currentPos
+        }
+    }
+
+    fun movePos(pos: MazeCoord, move: MazeCoord): MazeCoord  =
+            Pair(pos.first + move.first, pos.second + move.second)
+
+    fun nextMazePathes(virtualMaze: VirtualMaze): List<MazePath> =
+            listOf(
+                    Pair(0, 1),
+                    Pair(0, -1),
+                    Pair(1, 0),
+                    Pair(-1, 0)
+            )
+            .map {
+                val nextPos = movePos(end, it)
+                if (virtualMaze.get(nextPos) == '#') null
+                else this.copy(end = movePos(end, it), moves = moves + it)
+            }
+            .filterNotNull()
+
+
+}
+
+object Day13Spec : Spek({
 
     describe("part 1") {
         describe("example virtual maze") {
@@ -162,26 +211,39 @@ class Day13Spec : Spek({
                 mazeSum(x, y) `should equal` sum
             }
         }
-    }
-})
+        describe("find path") {
+            given("the start is the goal") {
+                val virtualMaze = VirtualMaze(10)
+                it("should find path") {
+                    val path = findPath(virtualMaze, Pair(1, 1), Pair(1, 1))
+                    printVirtualMaze(virtualMaze, 10, 7, path) `should equal` """
+                        .#.####.##
+                        .O#..#...#
+                        #....##...
+                        ###.#.###.
+                        .##..#..#.
+                        ..##....#.
+                        #...##.###
 
-fun findPath(virtualMaze: VirtualMaze, start: Pair<Int, Int>, goal: Pair<Int, Int>): MazePath = //TODO
-        MazePath(start, goal, listOf(
-                Pair(0,1), Pair(1,0), Pair(1,0),
-                Pair(0,1), Pair(0,1), Pair(1,0),
-                Pair(0,1), Pair(1,0), Pair(1,0),
-                Pair(0,-1), Pair(1,0)
-        ))
+                        """.trimIndent()
+                }
+            }
+            given("path only one step") {
+                val virtualMaze = VirtualMaze(10)
+                it("should find path") {
+                    val path = findPath(virtualMaze, Pair(1, 1), Pair(1, 2))
+                    printVirtualMaze(virtualMaze, 10, 7, path) `should equal` """
+                        .#.####.##
+                        .O#..#...#
+                        #O...##...
+                        ###.#.###.
+                        .##..#..#.
+                        ..##....#.
+                        #...##.###
 
-data class MazePath(val start: Pair<Int, Int>, val goal: Pair<Int, Int>, val moves: List<Pair<Int, Int>>) {
-    fun toCoordinates(): List<Pair<Int, Int>> {
-        var currentPos = start
-        return listOf(start) + moves.map {
-            currentPos = movePos(currentPos, it)
-            currentPos
+                        """.trimIndent()
+                }
+            }
         }
     }
-
-    private fun movePos(pos: Pair<Int, Int>, move: Pair<Int, Int>): Pair<Int, Int>  =
-            Pair(pos.first + move.first, pos.second + move.second)
-}
+})
