@@ -60,6 +60,12 @@ What is the fewest number of steps required for you to reach 31,39?
 
 Your puzzle input is 1362.
 
+--- Part Two ---
+
+How many locations (distinct x,y coordinates, including your starting location)
+can you reach in at most 50 steps?
+
+
  */
 
 typealias MazeCoord = Pair<Int, Int>
@@ -108,7 +114,7 @@ fun findPathBreathFirst(virtualMaze: VirtualMaze, start: MazeCoord, goal: MazeCo
         else it.nextMazePathes(virtualMaze)
     }
     if (nextPathes.isEmpty()) throw IllegalArgumentException("Nothing found")
-     val ends = pathes.map { it.end }
+    val ends = pathes.map { it.end }
 
     return findPathBreathFirst(virtualMaze, start, goal, nextPathes, alreadyVisited + ends)
 }
@@ -139,7 +145,26 @@ data class MazePath(val start: MazeCoord, val end: MazeCoord, val moves: List<Ma
             }
             .filterNotNull()
 
+}
 
+// Part 2
+
+fun countReachableLocations(virtualMaze: VirtualMaze, start: MazeCoord, steps: Int) =
+        countReachableLocations(virtualMaze, start, steps, listOf(MazePath(start, start, emptyList())), emptySet(), 0)
+
+fun countReachableLocations(virtualMaze: VirtualMaze, start: MazeCoord, steps: Int, pathes: List<MazePath>, alreadyVisited: Set<MazeCoord>, currentSteps: Int): Int {
+    val ends = pathes.map { it.end }
+    val nextAlreadyVisited = alreadyVisited + ends
+    if (currentSteps == steps)
+        return nextAlreadyVisited.size
+    else {
+        val nextPathes = pathes.flatMap {
+            if (it.end in alreadyVisited) emptyList()
+            else it.nextMazePathes(virtualMaze)
+        }
+        if (nextPathes.isEmpty()) nextAlreadyVisited.size // Nothing more can be found
+        return countReachableLocations(virtualMaze, start, steps, nextPathes, nextAlreadyVisited, currentSteps+1)
+    }
 }
 
 object Day13Spec : Spek({
@@ -245,5 +270,73 @@ object Day13Spec : Spek({
                 }
             }
         }
+        describe("exercise path") {
+            given("virtual maze with seed 1362") {
+                val virtualMaze = VirtualMaze(1362)
+                it("should find path") {
+                    val path = findPath(virtualMaze, Pair(1, 1), Pair(31, 39))
+                    val len = path.moves.size
+                    println("Day13, part 1 path length=$len")
+                    len `should equal` 82
+                }
+            }
+        }
+    }
+    describe("part 2") {
+        describe("count reachable locations") {
+            given("0 steps") {
+                val virtualMaze = VirtualMaze(10)
+                it("should be 1 (the start)") {
+                    val nr = countReachableLocations(virtualMaze, Pair(1, 1), 0)
+                    nr `should equal` 1
+                }
+            }
+            given("1 step") {
+                val virtualMaze = VirtualMaze(10)
+                it("should be 3") {
+                    val nr = countReachableLocations(virtualMaze, Pair(1, 1), 1)
+                    nr `should equal` 3
+                }
+            }
+            given("2 steps") {
+                val virtualMaze = VirtualMaze(10)
+                it("should be 5") {
+                    val nr = countReachableLocations(virtualMaze, Pair(1, 1), 2)
+                    nr `should equal` 5
+                }
+            }
+            given("3 steps") {
+                val virtualMaze = VirtualMaze(10)
+                it("should be 6") {
+                    val nr = countReachableLocations(virtualMaze, Pair(1, 1), 3)
+                    nr `should equal` 6
+                }
+            }
+            given("4 steps") {
+                val virtualMaze = VirtualMaze(10)
+                it("should be 9") {
+                    val nr = countReachableLocations(virtualMaze, Pair(1, 1), 4)
+                    nr `should equal` 9
+                }
+            }
+            given("5 steps") {
+                val virtualMaze = VirtualMaze(10)
+                it("should be 9") {
+                    val nr = countReachableLocations(virtualMaze, Pair(1, 1), 5)
+                    nr `should equal` 9
+                }
+            }
+            describe("exercise") {
+                given("virtual maze with seed 1362") {
+                    val virtualMaze = VirtualMaze(1362)
+                    it("should find path") {
+                        val nr = countReachableLocations(virtualMaze, Pair(1, 1), 50)
+                        println("Day13, part 2 reachable locations=$nr")
+                        nr `should equal` 3
+                    }
+                }
+            }
+        }
+
     }
 })
