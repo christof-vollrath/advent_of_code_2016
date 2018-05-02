@@ -75,8 +75,12 @@ data class VirtualMaze(val seed: Int) {
     fun get(pos: MazeCoord): Char = get(pos.first, pos.second)
 }
 
-fun printVirtualMaze(maze: VirtualMaze, width: Int, height: Int, path: MazePath? = null): String {
-    val coordinates = path?.toCoordinates()?.toSet()
+fun printVirtualMaze(maze: VirtualMaze, width: Int, height: Int, path: MazePath): String {
+    val coordinates = path.toCoordinates().toSet()
+    return printVirtualMaze(maze, width, height, coordinates)
+}
+
+fun printVirtualMaze(maze: VirtualMaze, width: Int, height: Int, coordinates: Set<MazeCoord>? = null): String {
     return (0 until height).map { y ->
         (0 until width).map { x ->
             if (coordinates != null && coordinates.contains(Pair(x,y))) 'O'
@@ -140,8 +144,11 @@ data class MazePath(val start: MazeCoord, val end: MazeCoord, val moves: List<Ma
             )
             .map {
                 val nextPos = movePos(end, it)
-                if (virtualMaze.get(nextPos) == '#') null
-                else this.copy(end = movePos(end, it), moves = moves + it)
+                when {
+                    nextPos.first < 0 || nextPos.second < 0 -> null
+                    virtualMaze.get(nextPos) == '#' -> null
+                    else -> this.copy(end = movePos(end, it), moves = moves + it)
+                }
             }
             .filterNotNull()
 
@@ -155,6 +162,7 @@ fun countReachableLocations(virtualMaze: VirtualMaze, start: MazeCoord, steps: I
 fun countReachableLocations(virtualMaze: VirtualMaze, start: MazeCoord, steps: Int, pathes: List<MazePath>, alreadyVisited: Set<MazeCoord>, currentSteps: Int): Int {
     val ends = pathes.map { it.end }
     val nextAlreadyVisited = alreadyVisited + ends
+    //if (currentSteps == steps) { println(printVirtualMaze(virtualMaze, 10, 10, nextAlreadyVisited)); println(nextAlreadyVisited) }
     if (currentSteps == steps)
         return nextAlreadyVisited.size
     else {
@@ -321,18 +329,18 @@ object Day13Spec : Spek({
             }
             given("5 steps") {
                 val virtualMaze = VirtualMaze(10)
-                it("should be 9") {
+                it("should be 11") {
                     val nr = countReachableLocations(virtualMaze, Pair(1, 1), 5)
-                    nr `should equal` 9
+                    nr `should equal` 11
                 }
             }
             describe("exercise") {
                 given("virtual maze with seed 1362") {
                     val virtualMaze = VirtualMaze(1362)
-                    it("should find path") {
+                    it("should count reachable locations") {
                         val nr = countReachableLocations(virtualMaze, Pair(1, 1), 50)
                         println("Day13, part 2 reachable locations=$nr")
-                        nr `should equal` 3
+                        nr `should equal` 138
                     }
                 }
             }
