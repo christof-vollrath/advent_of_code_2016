@@ -84,8 +84,23 @@ object Day14Spec : Spek({
                 }
             }
         }
+        describe("md5 checks") {
+            describe("check for triplets") {
+                it("should return false for a md5 without triplet") {
+                    checkForTriples(createKeypad("abc", 1)).`should be false`()
+                }
+                it("should return true for a md5 with triplet") {
+                    checkForTriples(createKeypad("abc", 18)).`should be true`()
+                }
+            }
+
+        }
     }
 })
+
+fun checkForTriples(keypad: String) = findFirstTriplet(keypad) != null
+
+fun createKeypad(seed: String, nr: Int) = md5(seed + nr.toString())
 
 fun find5Chars(str: String, c: Char): Boolean {
     val pattern =  c.toString().repeat(5).toPattern()
