@@ -1,3 +1,4 @@
+import org.amshove.kluent.`should be false`
 import org.amshove.kluent.`should be null`
 import org.amshove.kluent.`should be true`
 import org.amshove.kluent.`should equal`
@@ -58,13 +59,27 @@ object Day14Spec : Spek({
                 given("a string containing a triplet") {
                     val str = "Alles in Buttter."
                     it("should find the triplet") {
-                        findFirstTriplet(str) `should equal` "ttt"
+                        findFirstTriplet(str) `should equal` 't'
                     }
                 }
                 given("a string containing two triplets") {
                     val str = "111222"
                     it("should find the frist triplet") {
-                        findFirstTriplet(str) `should equal` "111"
+                        findFirstTriplet(str) `should equal` '1'
+                    }
+                }
+            }
+            describe("check char five times") {
+                given("a string not containing the char 5 times") {
+                    val str =  "Alles in Butter. 11111"
+                    it("should return false") {
+                        find5Chars(str, 't').`should be false`()
+                    }
+                }
+                given("a string containing the char 5 times") {
+                    val str =  "Alles in Buttttter. 11111"
+                    it("should return true") {
+                        find5Chars(str, 't').`should be true`()
                     }
                 }
             }
@@ -72,10 +87,15 @@ object Day14Spec : Spek({
     }
 })
 
-fun findFirstTriplet(str: String): String? {
+fun find5Chars(str: String, c: Char): Boolean {
+    val pattern =  c.toString().repeat(5).toPattern()
+    return pattern.matcher(str).find()
+}
+
+fun findFirstTriplet(str: String): Char? {
     val pattern = """(.)\1\1""".toPattern()
     val matcher = pattern.matcher(str)
     return if (!matcher.find())  null
-    else matcher.group(0)
+    else matcher.group(0)[0]
 
 }
