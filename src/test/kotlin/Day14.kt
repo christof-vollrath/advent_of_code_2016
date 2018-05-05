@@ -86,21 +86,62 @@ object Day14Spec : Spek({
         }
         describe("md5 checks") {
             describe("check for triplets") {
-                it("should return false for a md5 without triplet") {
-                    checkForTriples(createKeypad("abc", 1)).`should be false`()
+                it("should return null for a md5 without triplet") {
+                    findFirstTriplet(createKeypad("abc", 1)).`should be null`()
                 }
-                it("should return true for a md5 with triplet") {
-                    checkForTriples(createKeypad("abc", 18)).`should be true`()
+                it("should return '8' for a md5 with triplet") {
+                    findFirstTriplet(createKeypad("abc", 18)) `should equal` '8'
+                }
+                it("should return '8' for a md5 with triplet") {
+                    findFirstTriplet(createKeypad("abc", 39)) `should equal` 'e'
+                }
+            }
+            describe("check for five in a row in next 1000 md5 hashs") {
+                it("should return false it no five in a row are found") {
+                    check5CharsInMd5("abc", 18, '8').`should be false`()
+                }
+                it("should return true it five in a row are found") {
+                    check5CharsInMd5("abc", 39, 'e').`should be true`()
                 }
             }
 
         }
+        describe("example") {
+            it("should find the 64th key at index 22728") {
+                find64thKeyIndex("abc") `should equal` 22728
+            }
+        }
+        describe("exercise") {
+            it("should find the 64th key for the exercise") {
+                find64thKeyIndex("jlmsuwbz") `should equal` 35186
+            }
+        }
     }
 })
 
-fun checkForTriples(keypad: String) = findFirstTriplet(keypad) != null
+fun find64thKeyIndex(seed: String): Int =
+    generateSequence(1, Int::inc)
+            .filter {
+                val c = findFirstTriplet(createKeypad(seed, it))
+                c != null && check5CharsInMd5(seed, it, c)
+            }
+            .take(64)
+            .last()
 
-fun createKeypad(seed: String, nr: Int) = md5(seed + nr.toString())
+fun check5CharsInMd5(seed: String, from: Int, c: Char) =
+        (from+1 .. from+1000).any { find5Chars(createKeypad(seed, it), c) }
+
+val md5Cache = mutableMapOf<String, String>()
+fun createKeypad(seed: String, nr: Int): String {
+    val md5Input = seed + nr.toString()
+    val cachedValue = md5Cache[md5Input]
+    return if (cachedValue != null) cachedValue
+    else {
+        val md5Value = md5(md5Input)
+        md5Cache[md5Input] = md5Value
+        md5Value
+    }
+}
 
 fun find5Chars(str: String, c: Char): Boolean {
     val pattern =  c.toString().repeat(5).toPattern()
