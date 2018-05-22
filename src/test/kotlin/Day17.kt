@@ -3,12 +3,14 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.given
 import org.jetbrains.spek.api.dsl.it
+import org.jetbrains.spek.api.dsl.xgiven
 import org.jetbrains.spek.data_driven.data
 import org.jetbrains.spek.data_driven.on as onData
 
 /*
 
 --- Day 17: Two Steps Forward ---
+
 You're trying to access a secure vault protected by a 4x4 grid of small rooms connected by doors.
 You start in the top-left room (marked S),
 and you can access the vault (marked V) once you reach the bottom-right room:
@@ -65,6 +67,20 @@ Given your vault's passcode, what is the shortest path (the actual path, not jus
 
 Your puzzle input is rrrbmfta.
 
+--- Part Two ---
+
+You're curious how robust this security solution really is,
+and so you decide to find longer and longer paths which still provide access to the vault.
+You remember that paths always end the first time they reach the bottom-right room
+(that is, they can never pass through it, only end in it).
+
+For example:
+
+If your passcode were ihgpwlah, the longest path would take 370 steps.
+With kglvqrro, the longest path would be 492 steps long.
+With ulqzkmiv, the longest path would be 830 steps long.
+What is the length of the longest path that reaches the vault?
+
  */
 
 enum class Steps { UP, DOWN, LEFT, RIGHT }
@@ -88,15 +104,16 @@ object Day17Spec : Spek({
         }
         describe("find possible steps considering walls") {
             val testData = arrayOf(
-                    //       path                          result
-                    //--|-------------------------------|-------------------------------------------
-                    data(listOf<Steps>(),                        setOf(Pair(Steps.DOWN, Pair(0, 1))),
-                    data(listOf(Steps.DOWN),              setOf(Pair(Steps.UP, Pair(0, 0)), Pair(Steps.RIGHT, Pair(1, 1))),
-                    data(listOf(Steps.DOWN, Steps.RIGHT), setOf<Pair<Steps, Pair<Int, Int>>())
+                    //   seed           path                          result
+                    //--|-------------|-------------------------------|-------------------------------------------
+                    data("hijkl",    listOf<Steps>(),                setOf(Pair(Steps.DOWN, Pair(0, 1)))),
+                    data("hijkl",    listOf(Steps.DOWN),             setOf(Pair(Steps.UP, Pair(0, 0)), Pair(Steps.RIGHT, Pair(1, 1)))),
+                    data("hijkl",   listOf(Steps.DOWN, Steps.RIGHT), setOf<Pair<Steps, Pair<Int, Int>>>()),
+                    data("kglvqrro", listOf(Steps.DOWN, Steps.DOWN), setOf(Pair(Steps.UP, Pair(0, 1))))
             )
-            onData("input %s", with = *testData) { path, expected ->
+            onData("input %s", with = *testData) { seed, path, expected ->
                 it("returns $expected") {
-                    findNextStepsConsideringWalls("hijkl", path) `should equal` expected
+                    findNextStepsConsideringWalls(seed, path) `should equal` expected
                 }
             }
         }
@@ -120,19 +137,48 @@ object Day17Spec : Spek({
         describe("examples") {
             given("example 1") {
                 val seed = "ihgpwlah"
-                findStepsToVault(seed) `should equal` "DDRRRD".toPath()
+                it ("should find solution") {
+                    stepsToString(findStepsToVault(seed)) `should equal` "DDRRRD"
+                }
+            }
+            given("example 2") {
+                val seed = "kglvqrro"
+                it ("should find solution") {
+                    stepsToString(findStepsToVault(seed)) `should equal` "DDUDRLRRUDRD"
+                }
+            }
+            given("example 3") {
+                val seed = "ulqzkmiv"
+                it ("should find solution") {
+                    stepsToString(findStepsToVault(seed)) `should equal` "DRURDRUDDLLDLUURRDULRLDUUDDDRR"
+                }
+            }
+        }
+        describe("exercise") {
+            given("seed") {
+                val seed = "rrrbmfta"
+                it("should find solution") {
+                    stepsToString(findStepsToVault(seed)) `should equal` "RLRDRDUDDR"
+                }
             }
         }
     }
 })
 
-fun findStepsToVault(seed: String) = findStepsToVaultBreadthFirst(seed, listOf(), setOf())
+fun findStepsToVault(seed: String) = findStepsToVaultBreadthFirst(seed, setOf(listOf()))
 
-fun findStepsToVaultBreadthFirst(seed: String, pathes: List<Set<Steps>>, visited: Set<Pair<Int, Int>>): Any {
-    for(path in pathes) {
-
-    }
-    TODO()
+fun findStepsToVaultBreadthFirst(seed: String, pathes: Set<List<Steps>>): List<Steps> {
+    val nextPathes = pathes.flatMap { path ->
+        val nextSteps = findNextStepsConsideringWalls(seed, path)
+        nextSteps.map { nextStep ->
+            val nextPath = path + listOf(nextStep.first)
+            if (nextStep.second == Pair(3, 3))
+                return@findStepsToVaultBreadthFirst nextPath // Solution found
+            else nextPath
+        }
+    }.toSet()
+    if (nextPathes.isEmpty()) throw IllegalArgumentException("No solution found")
+    return findStepsToVaultBreadthFirst(seed, nextPathes)
 }
 
 private fun String.toPath() =
@@ -156,10 +202,10 @@ fun findNextStepsConsideringWalls(seed: String, path: List<Steps>) =
 
 fun movePos(list: List<Steps>) = list.fold(Pair(0, 0)) { pos, step ->
     when(step) {
-        Steps.UP -> Pair(pos.first - 1, pos.second)
-        Steps.DOWN -> Pair(pos.first + 1, pos.second)
-        Steps.LEFT -> Pair(pos.first, pos.second - 1)
-        Steps.RIGHT -> Pair(pos.first, pos.second + 1)
+        Steps.UP -> Pair(pos.first, pos.second - 1)
+        Steps.DOWN -> Pair(pos.first, pos.second + 1)
+        Steps.LEFT -> Pair(pos.first - 1, pos.second)
+        Steps.RIGHT -> Pair(pos.first + 1, pos.second)
     }
 }
 
