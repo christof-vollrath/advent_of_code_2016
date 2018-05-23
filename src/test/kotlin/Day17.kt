@@ -3,7 +3,6 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.given
 import org.jetbrains.spek.api.dsl.it
-import org.jetbrains.spek.api.dsl.xgiven
 import org.jetbrains.spek.data_driven.data
 import org.jetbrains.spek.data_driven.on as onData
 
@@ -163,7 +162,39 @@ object Day17Spec : Spek({
             }
         }
     }
+    describe("part 2") {
+        describe("examples") {
+            given("example 1") {
+                val seed = "ihgpwlah"
+                it ("should find solution") {
+                    findLongestSteps(seed)!!.size `should equal` 370
+                }
+            }
+            given("example 2") {
+                val seed = "kglvqrro"
+                it ("should find solution") {
+                    findLongestSteps(seed)!!.size `should equal` 492
+                }
+            }
+            given("example 3") {
+                val seed = "ulqzkmiv"
+                it ("should find solution") {
+                    findLongestSteps(seed)!!.size `should equal` 830
+                }
+            }
+        }
+        describe("exercise") {
+            given("seed") {
+                val seed = "rrrbmfta"
+                it("should find solution") {
+                    findLongestSteps(seed)!!.size `should equal` 420
+                }
+            }
+        }
+    }
+
 })
+
 
 fun findStepsToVault(seed: String) = findStepsToVaultBreadthFirst(seed, setOf(listOf()))
 
@@ -179,6 +210,32 @@ fun findStepsToVaultBreadthFirst(seed: String, pathes: Set<List<Steps>>): List<S
     }.toSet()
     if (nextPathes.isEmpty()) throw IllegalArgumentException("No solution found")
     return findStepsToVaultBreadthFirst(seed, nextPathes)
+}
+
+fun findLongestSteps(seed: String): List<Steps>? {
+    val allPathes = findAllStepsToVault(seed)
+    return allPathes.maxBy { it.size }
+}
+
+fun findAllStepsToVault(seed: String): Set<List<Steps>> {
+    return findAllStepsToVaultBreadthFirst(seed, setOf(listOf()), mutableSetOf())
+}
+
+fun findAllStepsToVaultBreadthFirst(seed: String, pathes: Set<List<Steps>>, pathesToVault: MutableSet<List<Steps>>): Set<List<Steps>> {
+    val nextPathes = pathes.flatMap { path ->
+        val nextSteps = findNextStepsConsideringWalls(seed, path)
+        nextSteps.map { nextStep ->
+            val nextPath = path + listOf(nextStep.first)
+            if (nextStep.second == Pair(3, 3)) {
+                pathesToVault.add(nextPath) // Solution found
+                null
+            }
+            else nextPath
+        }
+        .filterNotNull()
+    }.toSet()
+    if (nextPathes.isEmpty()) return pathesToVault // All pathes found
+    return findAllStepsToVaultBreadthFirst(seed, nextPathes, pathesToVault)
 }
 
 private fun String.toPath() =
