@@ -186,6 +186,7 @@ object Day18Spec : Spek({
                 val input = "^..^^.^^^..^^.^...^^^^^....^.^..^^^.^.^.^^...^.^.^.^.^^.....^.^^.^.^.^.^.^.^^..^^^^^...^.....^....^."
                 val repeat = 40
                 it("should find correct tiles and give the number of save tiles") {
+                    countSaveTiles(tiledRows(input, repeat)) `should equal` 2016
                     countSaveTilesInTiledRows(input, repeat) `should equal` 2016
                 }
             }
