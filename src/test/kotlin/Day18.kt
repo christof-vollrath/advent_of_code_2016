@@ -1,3 +1,11 @@
+import org.amshove.kluent.`should equal`
+import org.jetbrains.spek.api.Spek
+import org.jetbrains.spek.api.dsl.describe
+import org.jetbrains.spek.api.dsl.given
+import org.jetbrains.spek.api.dsl.it
+import org.jetbrains.spek.data_driven.data
+import org.jetbrains.spek.data_driven.on as onData
+
 /*
 --- Day 18: Like a Rogue ---
 
@@ -70,4 +78,106 @@ in a total of 40 rows (including the starting row), how many safe tiles are ther
 
  */
 
-const val DAY_18_INPUT = "^..^^.^^^..^^.^...^^^^^....^.^..^^^.^.^.^^...^.^.^.^.^^.....^.^^.^.^.^.^.^.^^..^^^^^...^.....^....^."
+fun countSaveTiles(tiledRows: List<String>) =
+        tiledRows.map {
+            it.filter { it == '.'}.count()
+        }.sum()
+
+
+fun tiledRows(input: String, repeat: Int): List<String> =
+        listOf(input) + if (repeat > 1) tiledRows(nextTiledRow(input), repeat - 1) else listOf()
+
+fun determineTileType(input: Triple<Char?, Char, Char?>) =
+        when(input) {
+            Triple('^',  '^', '.') -> '^'
+            Triple('^',  '.', '.') -> '^'
+            Triple('.',  '^', '^') -> '^'
+            Triple('.',  '.', '^') -> '^'
+            else -> '.'
+        }
+
+fun nextTiledRow(input: String) =
+        (0 until input.length).map {
+            determineTileType(getTriple(it, input))
+        }.joinToString("")
+
+fun getTriple(pos: Int, input: String): Triple<Char?, Char, Char?> =
+        Triple(
+                if (pos <= 0) '.'
+                else input[pos - 1],
+                input[pos],
+                if (pos >= input.length - 1) '.'
+                else input[pos + 1]
+        )
+
+object Day18Spec : Spek({
+
+    describe("part 1") {
+        describe("simple exercise") {
+            given("simple input") {
+                val input = "..^^."
+                it("should find correct next row") {
+                    nextTiledRow(input) `should equal` ".^^^^"
+                }
+            }
+            given("simple input to calculate next 2 rows") {
+                val input = "..^^."
+                it("should find correct rows") {
+                    tiledRows(input, 3) `should equal`
+                        listOf(
+                            "..^^.",
+                            ".^^^^",
+                            "^^..^"
+                        )
+                }
+            }
+            given("larger example") {
+                val input = ".^^.^.^^^^"
+                it("should find correct rows") {
+                    tiledRows(input, 10) `should equal`
+                            listOf(
+                                ".^^.^.^^^^",
+                                "^^^...^..^",
+                                "^.^^.^.^^.",
+                                "..^^...^^^",
+                                ".^^^^.^^.^",
+                                "^^..^.^^..",
+                                "^^^^..^^^.",
+                                "^..^^^^.^^",
+                                ".^^^..^.^^",
+                                "^^.^^^..^^"
+                            )
+                }
+                it("should have the correct number of save tiles") {
+                    countSaveTiles(tiledRows(input, 10)) `should equal` 38
+                }
+            }
+        }
+        describe("determine tile type") {
+            val testData = arrayOf(
+                    //       input           result
+                    //--|------------------|--------------
+                    data(Triple('^',  '^', '.'),  '^'),
+                    data(Triple('^',  '.', '.'),  '^'),
+                    data(Triple('.',  '^', '^'),  '^'),
+                    data(Triple('.',  '.', '^'),  '^'),
+                    data(Triple('.',  '.', '.'),  '.')
+            )
+            onData("input %s", with = *testData) { input, expected ->
+                it("returns $expected") {
+                    determineTileType(input) `should equal` expected
+                }
+            }
+        }
+        describe("exercise") {
+            given("exercise input") {
+                val input = "^..^^.^^^..^^.^...^^^^^....^.^..^^^.^.^.^^...^.^.^.^.^^.....^.^^.^.^.^.^.^.^^..^^^^^...^.....^....^."
+                val repeat = 40
+                it("should find correct tiles and give the number of save tiles") {
+                    countSaveTiles(tiledRows(input, repeat)) `should equal` 2016
+                }
+            }
+        }
+
+    }
+})

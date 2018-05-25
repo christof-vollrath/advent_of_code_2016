@@ -84,6 +84,94 @@ What is the length of the longest path that reaches the vault?
 
 enum class Steps { UP, DOWN, LEFT, RIGHT }
 
+
+fun findStepsToVault(seed: String) = findStepsToVaultBreadthFirst(seed, setOf(listOf()))
+
+fun findStepsToVaultBreadthFirst(seed: String, pathes: Set<List<Steps>>): List<Steps> {
+    val nextPathes = pathes.flatMap { path ->
+        val nextSteps = findNextStepsConsideringWalls(seed, path)
+        nextSteps.map { nextStep ->
+            val nextPath = path + listOf(nextStep.first)
+            if (nextStep.second == Pair(3, 3))
+                return@findStepsToVaultBreadthFirst nextPath // Solution found
+            else nextPath
+        }
+    }.toSet()
+    if (nextPathes.isEmpty()) throw IllegalArgumentException("No solution found")
+    return findStepsToVaultBreadthFirst(seed, nextPathes)
+}
+
+fun findLongestSteps(seed: String): List<Steps>? {
+    val allPathes = findAllStepsToVault(seed)
+    return allPathes.maxBy { it.size }
+}
+
+fun findAllStepsToVault(seed: String): Set<List<Steps>> {
+    return findAllStepsToVaultBreadthFirst(seed, setOf(listOf()), mutableSetOf())
+}
+
+fun findAllStepsToVaultBreadthFirst(seed: String, pathes: Set<List<Steps>>, pathesToVault: MutableSet<List<Steps>>): Set<List<Steps>> {
+    val nextPathes = pathes.flatMap { path ->
+        val nextSteps = findNextStepsConsideringWalls(seed, path)
+        nextSteps.map { nextStep ->
+            val nextPath = path + listOf(nextStep.first)
+            if (nextStep.second == Pair(3, 3)) {
+                pathesToVault.add(nextPath) // Solution found
+                null
+            }
+            else nextPath
+        }
+                .filterNotNull()
+    }.toSet()
+    if (nextPathes.isEmpty()) return pathesToVault // All pathes found
+    return findAllStepsToVaultBreadthFirst(seed, nextPathes, pathesToVault)
+}
+
+fun String.toPath() =
+        map {
+            when(it) {
+                'U' -> Steps.UP
+                'D' -> Steps.DOWN
+                'L' -> Steps.LEFT
+                'R' -> Steps.RIGHT
+                else -> throw IllegalArgumentException("Unexpected $it")
+            }
+        }
+
+fun findNextStepsConsideringWalls(seed: String, path: List<Steps>) =
+        findNextSteps(seed, path).mapNotNull {
+            val pos = movePos(path + it)
+            if (pos.first in 0..3 && pos.second in 0..3) Pair(it, pos)
+            else null
+        }
+                .toSet()
+
+fun movePos(list: List<Steps>) = list.fold(Pair(0, 0)) { pos, step ->
+    when(step) {
+        Steps.UP -> Pair(pos.first, pos.second - 1)
+        Steps.DOWN -> Pair(pos.first, pos.second + 1)
+        Steps.LEFT -> Pair(pos.first - 1, pos.second)
+        Steps.RIGHT -> Pair(pos.first + 1, pos.second)
+    }
+}
+
+fun findNextSteps(seed: String, path: List<Steps>): Set<Steps> =
+        codeCharsToSteps(md5(seed + stepsToString(path)))
+
+fun stepsToString(path: List<Steps>) =
+        path.map {
+            it.name[0]
+        }.joinToString("")
+
+fun codeCharsToSteps(str: String) =
+        listOf(Steps.UP, Steps.DOWN, Steps.LEFT, Steps.RIGHT)
+                .mapIndexed { i, step ->
+                    if (str[i] in 'b'..'f') step
+                    else null
+                }
+                .filterNotNull()
+                .toSet()
+
 object Day17Spec : Spek({
 
     describe("part 1") {
@@ -194,92 +282,4 @@ object Day17Spec : Spek({
     }
 
 })
-
-
-fun findStepsToVault(seed: String) = findStepsToVaultBreadthFirst(seed, setOf(listOf()))
-
-fun findStepsToVaultBreadthFirst(seed: String, pathes: Set<List<Steps>>): List<Steps> {
-    val nextPathes = pathes.flatMap { path ->
-        val nextSteps = findNextStepsConsideringWalls(seed, path)
-        nextSteps.map { nextStep ->
-            val nextPath = path + listOf(nextStep.first)
-            if (nextStep.second == Pair(3, 3))
-                return@findStepsToVaultBreadthFirst nextPath // Solution found
-            else nextPath
-        }
-    }.toSet()
-    if (nextPathes.isEmpty()) throw IllegalArgumentException("No solution found")
-    return findStepsToVaultBreadthFirst(seed, nextPathes)
-}
-
-fun findLongestSteps(seed: String): List<Steps>? {
-    val allPathes = findAllStepsToVault(seed)
-    return allPathes.maxBy { it.size }
-}
-
-fun findAllStepsToVault(seed: String): Set<List<Steps>> {
-    return findAllStepsToVaultBreadthFirst(seed, setOf(listOf()), mutableSetOf())
-}
-
-fun findAllStepsToVaultBreadthFirst(seed: String, pathes: Set<List<Steps>>, pathesToVault: MutableSet<List<Steps>>): Set<List<Steps>> {
-    val nextPathes = pathes.flatMap { path ->
-        val nextSteps = findNextStepsConsideringWalls(seed, path)
-        nextSteps.map { nextStep ->
-            val nextPath = path + listOf(nextStep.first)
-            if (nextStep.second == Pair(3, 3)) {
-                pathesToVault.add(nextPath) // Solution found
-                null
-            }
-            else nextPath
-        }
-        .filterNotNull()
-    }.toSet()
-    if (nextPathes.isEmpty()) return pathesToVault // All pathes found
-    return findAllStepsToVaultBreadthFirst(seed, nextPathes, pathesToVault)
-}
-
-private fun String.toPath() =
-        map {
-            when(it) {
-                'U' -> Steps.UP
-                'D' -> Steps.DOWN
-                'L' -> Steps.LEFT
-                'R' -> Steps.RIGHT
-                else -> throw IllegalArgumentException("Unexpected $it")
-            }
-        }
-
-fun findNextStepsConsideringWalls(seed: String, path: List<Steps>) =
-    findNextSteps(seed, path).mapNotNull {
-        val pos = movePos(path + it)
-        if (pos.first in 0..3 && pos.second in 0..3) Pair(it, pos)
-        else null
-    }
-    .toSet()
-
-fun movePos(list: List<Steps>) = list.fold(Pair(0, 0)) { pos, step ->
-    when(step) {
-        Steps.UP -> Pair(pos.first, pos.second - 1)
-        Steps.DOWN -> Pair(pos.first, pos.second + 1)
-        Steps.LEFT -> Pair(pos.first - 1, pos.second)
-        Steps.RIGHT -> Pair(pos.first + 1, pos.second)
-    }
-}
-
-fun findNextSteps(seed: String, path: List<Steps>): Set<Steps> =
-    codeCharsToSteps(md5(seed + stepsToString(path)))
-
-fun stepsToString(path: List<Steps>) =
-        path.map {
-            it.name[0]
-        }.joinToString("")
-
-fun codeCharsToSteps(str: String) =
-        listOf(Steps.UP, Steps.DOWN, Steps.LEFT, Steps.RIGHT)
-        .mapIndexed { i, step ->
-            if (str[i] in 'b'..'f') step
-            else null
-        }
-        .filterNotNull()
-        .toSet()
 
