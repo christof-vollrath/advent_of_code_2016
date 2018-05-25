@@ -76,13 +76,25 @@ In ten rows, this larger example has 38 safe tiles.
 Starting with the map in your puzzle input,
 in a total of 40 rows (including the starting row), how many safe tiles are there?
 
+--- Part Two ---
+
+How many safe tiles are there in a total of 400000 rows?
+
  */
 
 fun countSaveTiles(tiledRows: List<String>) =
         tiledRows.map {
-            it.filter { it == '.'}.count()
+            countSaveTiles(it)
         }.sum()
 
+fun countSaveTiles(it: String) = it.filter { it == '.' }.count()
+
+
+tailrec fun countSaveTilesInTiledRows(input: String, repeat: Int, sum: Int = 0): Int {
+    var result = sum + countSaveTiles(input)
+    return if (repeat > 1) countSaveTilesInTiledRows(nextTiledRow(input), repeat - 1, result)
+    else result
+}
 
 fun tiledRows(input: String, repeat: Int): List<String> =
         listOf(input) + if (repeat > 1) tiledRows(nextTiledRow(input), repeat - 1) else listOf()
@@ -174,10 +186,20 @@ object Day18Spec : Spek({
                 val input = "^..^^.^^^..^^.^...^^^^^....^.^..^^^.^.^.^^...^.^.^.^.^^.....^.^^.^.^.^.^.^.^^..^^^^^...^.....^....^."
                 val repeat = 40
                 it("should find correct tiles and give the number of save tiles") {
-                    countSaveTiles(tiledRows(input, repeat)) `should equal` 2016
+                    countSaveTilesInTiledRows(input, repeat) `should equal` 2016
                 }
             }
         }
-
+    }
+    describe("part 2") {
+        describe("exercise") {
+            given("exercise input") {
+                val input = "^..^^.^^^..^^.^...^^^^^....^.^..^^^.^.^.^^...^.^.^.^.^^.....^.^^.^.^.^.^.^.^^..^^^^^...^.....^....^."
+                val repeat = 400_000
+                it("should find correct tiles and give the number of save tiles") {
+                    countSaveTilesInTiledRows(input, repeat) `should equal` 19998750
+                }
+            }
+        }
     }
 })
