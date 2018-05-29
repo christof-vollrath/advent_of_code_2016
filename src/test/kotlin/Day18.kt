@@ -125,7 +125,7 @@ fun getTriple(pos: Int, input: String): Triple<Char?, Char, Char?> =
 object Day18Spec : Spek({
 
     describe("part 1") {
-        describe("simple exercise") {
+        describe("simple example") {
             given("simple input") {
                 val input = "..^^."
                 it("should find correct next row") {
