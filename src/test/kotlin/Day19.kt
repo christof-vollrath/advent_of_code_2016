@@ -4,6 +4,7 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.given
 import org.jetbrains.spek.api.dsl.it
+import org.jetbrains.spek.api.dsl.xgiven
 
 /*
 --- Day 19: An Elephant Named Joseph ---
@@ -92,12 +93,35 @@ fun elfCircle(size: Int): Pair<Int, Int> {
     val circle = createCircleOfElves(size)
     var currPos = 0
     while(true) {
-        val left = nextElfPos(circle, currPos)
-        if (left == null) return circle[currPos]
-        transferPresents(circle, currPos, left)
-        val next = nextElfPos(circle, currPos) // now left neighbor without will be skipped
+        val swap = nextElfPos(circle, currPos)
+        if (swap == null) return circle[currPos]
+        transferPresents(circle, currPos, swap)
+        val next = nextElfPos(circle, currPos) // now left neighbor without presents will be skipped
         if (next == null) return circle[currPos]
         currPos = next
+    }
+}
+
+fun transferPresents2(circle: MutableMap<Int, Int>, currPos: Int, swapPos: Int): Int {
+    val currElf = circle.keys.elementAt(currPos)
+    val swapElf = circle.keys.elementAt(swapPos)
+    circle[currElf] = circle[currElf]!! + circle[swapElf]!!
+    circle.remove(swapElf)
+    if (swapPos < currPos) return currPos - 1 // correct currPos
+    else return currPos
+}
+
+fun elfCircle2(size: Int): Pair<Int, Int> {
+    val circle = createCircleOfElves(size).toMap().toMutableMap()
+    var currPos = 0
+    while(true) {
+        val swapPos = crossCircleElf(circle.size, currPos)
+        if (swapPos == null) return Pair(circle.keys.elementAt(currPos), circle.values.elementAt(currPos))
+        println("size=${circle.size} currPos=$currPos swapPos=$swapPos")
+        currPos = transferPresents2(circle, currPos, swapPos)
+        val nextPos = (currPos + 1).rem(circle.size)
+        if (nextPos == currPos) return Pair(circle.keys.elementAt(currPos), circle.values.elementAt(currPos))
+        currPos = nextPos
     }
 }
 
@@ -110,6 +134,12 @@ fun nextElfPos(circle: List<Pair<Int, Int>>, pos: Int): Int? {
         if (curr == pos) return null
         if (circle[curr].second > 0) return curr
     }
+}
+
+fun crossCircleElf(circleSize: Int, pos: Int): Int? {
+    val result = (pos + circleSize / 2).rem(circleSize)
+    return if (result == pos) null
+    else result
 }
 
 object Day19Spec : Spek({
@@ -166,12 +196,40 @@ object Day19Spec : Spek({
                 }
             }
         }
-        given("exercise") {
+        xgiven("exercise") {
             val input = 3012210
             it("should find correct elf") {
                 elfCircle(input) `should equal` Pair(1830117, 3012210)
             }
         }
 
+    }
+    describe("part 2") {
+        describe("next elf position") {
+            it("should got to cross circle") {
+                crossCircleElf(5, 0) `should equal` 2
+            }
+            it("should got to cross circle and around") {
+                crossCircleElf(5, 4) `should equal` 1
+            }
+            it("should skip elf without presents") {
+                crossCircleElf(4, 1) `should equal` 3
+            }
+            it("should handle special case correctly") {
+                crossCircleElf(3, 2) `should equal` 0
+            }
+        }
+        given("example") {
+            val input = 5
+            it("should find correct elf") {
+                elfCircle2(input) `should equal` Pair(2, 5)
+            }
+        }
+        xgiven("exercise") {
+            val input = 3012210
+            it("should find correct elf") {
+                elfCircle2(input) `should equal` Pair(1830117, 3012210)
+            }
+        }
     }
 })
