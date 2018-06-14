@@ -102,38 +102,38 @@ fun elfCircle(size: Int): Pair<Int, Int> {
     }
 }
 
-fun transferPresents2(circle: MutableMap<Int, Int>, currPos: Int, swapPos: Int): Int {
-    val currElf = circle.keys.elementAt(currPos)
-    val swapElf = circle.keys.elementAt(swapPos)
-    circle[currElf] = circle[currElf]!! + circle[swapElf]!!
-    circle.remove(swapElf)
-    if (swapPos < currPos) return currPos - 1 // correct currPos
-    else return currPos
+fun transferPresents2(circle: MutableList<Pair<Int, Int>>, currPos: Int, swapPos: Int) {
+    val currElf = circle[currPos]
+    val swapElf = circle[swapPos]
+    circle[currPos] = Pair(currElf.first, currElf.second + swapElf.second)
+    circle.removeAt(swapPos)
 }
 
 fun elfCircle2(size: Int): Pair<Int, Int> {
-    val circle = createCircleOfElves(size).toMap().toMutableMap()
+    val circle = createCircleOfElves(size)
     var currPos = 0
     while(true) {
-        val swapPos = crossCircleElf(circle.size, currPos)
-        if (swapPos == null) return Pair(circle.keys.elementAt(currPos), circle.values.elementAt(currPos))
-        println("size=${circle.size} currPos=$currPos swapPos=$swapPos")
-        currPos = transferPresents2(circle, currPos, swapPos)
-        val nextPos = (currPos + 1).rem(circle.size)
-        if (nextPos == currPos) return Pair(circle.keys.elementAt(currPos), circle.values.elementAt(currPos))
-        currPos = nextPos
+        var swapPos = crossCircleElf(circle.size, currPos)
+        if (swapPos == null) return circle[currPos]
+        transferPresents2(circle, currPos, swapPos)
+        if (swapPos < currPos) currPos-- // must be corrected because transferPresent2 removed before current pos
+        val nextCurrPos = nextElfPos(circle, currPos) // now left neighbor without presents will be skipped
+        if (nextCurrPos == null) return circle[currPos]
+        currPos = nextCurrPos
     }
 }
 
 fun createCircleOfElves(size: Int) = (1..size).map { Pair(it, 1) }.toMutableList()
 
-fun nextElfPos(circle: List<Pair<Int, Int>>, pos: Int): Int? {
-    var curr = pos
-    while(true) {
-        curr = (curr + 1).rem(circle.size)
-        if (curr == pos) return null
-        if (circle[curr].second > 0) return curr
-    }
+fun nextElfPos(circle: List<Pair<Int, Int>>, pos: Int?): Int? {
+    if (pos != null) {
+        var curr: Int = pos
+        while(true) {
+            curr = (curr + 1).rem(circle.size)
+            if (curr == pos) return null
+            if (circle[curr].second > 0) return curr
+        }
+    } else return null
 }
 
 fun crossCircleElf(circleSize: Int, pos: Int): Int? {
@@ -228,7 +228,7 @@ object Day19Spec : Spek({
         xgiven("exercise") {
             val input = 3012210
             it("should find correct elf") {
-                elfCircle2(input) `should equal` Pair(1830117, 3012210)
+                elfCircle2(input) `should equal` Pair(1417887, 3012210)
             }
         }
     }
