@@ -5,6 +5,7 @@ import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.given
 import org.jetbrains.spek.api.dsl.it
 import org.jetbrains.spek.api.dsl.xgiven
+//import kotlinx.collections.immutable.*
 
 /*
 --- Day 19: An Elephant Named Joseph ---
@@ -113,7 +114,21 @@ fun elfCircle2(size: Int): Pair<Int, Int> {
     val circle = createCircleOfElves(size)
     var currPos = 0
     while(true) {
-        var swapPos = crossCircleElf(circle.size, currPos)
+        val swapPos = crossCircleElf(circle.size, currPos)
+        if (swapPos == null) return circle[currPos]
+        transferPresents2(circle, currPos, swapPos)
+        if (swapPos < currPos) currPos-- // must be corrected because transferPresent2 removed before current pos
+        val nextCurrPos = nextElfPos(circle, currPos) // now left neighbor without presents will be skipped
+        if (nextCurrPos == null) return circle[currPos]
+        currPos = nextCurrPos
+    }
+}
+
+fun elfCircle2a(size: Int): Pair<Int, Int> {
+    val circle = createCircleOfElves(size)//.toImmutableList()
+    var currPos = 0
+    while(true) {
+        val swapPos = crossCircleElf(circle.size, currPos)
         if (swapPos == null) return circle[currPos]
         transferPresents2(circle, currPos, swapPos)
         if (swapPos < currPos) currPos-- // must be corrected because transferPresent2 removed before current pos

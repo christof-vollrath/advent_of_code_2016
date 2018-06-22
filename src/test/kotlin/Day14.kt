@@ -206,7 +206,7 @@ object Day14Spec : Spek({
                 find64thKeypad("abc", 2016) `should equal` 22551
             }
         }
-        describe("exercise") {
+        xdescribe("exercise") {
             it("should find the 64th key at index 22551") {
                 find64thKeypad("jlmsuwbz", 2016) `should equal` 22429
             }

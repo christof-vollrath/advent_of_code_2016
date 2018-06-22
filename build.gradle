@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlin_version = '1.2.41'
+    ext.kotlin_version = '1.2.50'
 
     repositories {
         jcenter()
@@ -32,15 +32,27 @@ repositories {
 }
 
 dependencies {
-    testCompile 'org.jetbrains.spek:spek-api:1.1.5'
-    testCompile 'org.jetbrains.spek:spek-data-driven-extension:1.1.5'
-    testRuntime 'org.jetbrains.spek:spek-junit-platform-engine:1.1.5'
-    testCompile 'org.amshove.kluent:kluent:1.35'
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: "$kotlin_version"
     compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: '0.20'
+    testCompile ('org.jetbrains.spek:spek-api:1.1.5') {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    testCompile ('org.jetbrains.spek:spek-data-driven-extension:1.1.5') {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    testRuntime ('org.jetbrains.spek:spek-junit-platform-engine:1.1.5') {
+        exclude group: 'org.junit.platform'
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    testCompile ('org.amshove.kluent:kluent:1.35') {
+        //exclude group: 'junit'
+    }
+    testCompile('org.junit.jupiter:junit-jupiter-api:5.2.0')
+    testCompile('org.junit.jupiter:junit-jupiter-params:5.2.0')
+    testRuntime('org.junit.jupiter:junit-jupiter-engine:5.2.0')
+//    compile 'org.jetbrains.kotlinx:kotlinx-collections-immutable:0.1'
 }
-
 kotlin {
     experimental {
         coroutines 'enable'

@@ -3,6 +3,7 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.given
 import org.jetbrains.spek.api.dsl.it
+import org.jetbrains.spek.api.dsl.xdescribe
 import org.jetbrains.spek.data_driven.data
 import org.jetbrains.spek.data_driven.on as onData
 
@@ -125,7 +126,7 @@ object Day16Spec : Spek({
         }
     }
     describe("part 2") {
-        describe("exercise2") {
+        this.xdescribe("exercise2") {
             it("should calculate correct checksum2") {
                 diskCheckSum(dragonFill("11110010111001001", 35651584)) `should equal` "11001111011000111"
             }

@@ -362,7 +362,7 @@ class Day11Spec : Spek({
                 }
             }
         }
-        describe("exercise") {
+        xdescribe("exercise") {
             given("the starting arrangement") {
                 val arrangement = Arrangement(1, listOf(
                         setOf(
