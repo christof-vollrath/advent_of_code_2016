@@ -79,6 +79,15 @@ fun lowestValidIp(input: List<IpRange>): Long {
 }
 
 
+fun countOutsideRange(ranges: List<IpRange>, max: Long): Long {
+    val upToLastElement = ranges.fold(Pair(0L, 0L)) { acc, ipRange: IpRange ->
+        val n = if (acc.first == 0L) ipRange.first
+        else if (ipRange.first > acc.first) ipRange.first - 1 - acc.first else 0L
+        Pair(ipRange.second, acc.second + n)
+    }
+    return upToLastElement.second + max - upToLastElement.first
+}
+
 object Day20Spec : Spek({
 
     describe("part 1") {
@@ -154,23 +163,42 @@ object Day20Spec : Spek({
     }
 
     describe("part 2") {
+        describe("count outside range") {
+            given("no ranges") {
+                val ranges = listOf<IpRange>()
+                it("should return number") {
+                    countOutsideRange(ranges, 10) `should equal` 10
+                }
+            }
+            given("one ranges") {
+                val ranges = listOf(IpRange(0, 5))
+                it("should return number") {
+                    countOutsideRange(ranges, 10) `should equal` 5
+                }
+            }
+            given("more ranges") {
+                val ranges = listOf(IpRange(0, 5), IpRange(6,7), IpRange(9, 10))
+                it("should return number") {
+                    countOutsideRange(ranges, 12) `should equal` 3
+                }
+            }
+            given("more ranges, not starting from 0") {
+                val ranges = listOf(IpRange(1, 5), IpRange(6,7), IpRange(9, 10))
+                it("should return number") {
+                    countOutsideRange(ranges, 12) `should equal` 4
+                }
+            }
+        }
         given("example") {
             val input = listOf(IpRange(5, 8), IpRange(0, 2), IpRange(4, 7))
             it("should find all allowed ips") {
-                findValidIps(mergeRanges(input), 9) `should equal` listOf(3, 9)
+                countOutsideRange(mergeRanges(input), 9) `should equal` 2
             }
         }
         given("exercise") {
             val inputString = readTrimedLinesFromResource("day20Input.txt")
             val input = parseIpRanges(inputString)
-            TODO()
+            countOutsideRange(mergeRanges(input), 4294967295) `should equal` 146
         }
     }
-
 })
-
-fun findValidIps(ranges: List<IpRange>, n: Long) =
-        (0..n).filter { checkIp(it, ranges) }
-
-fun checkIp(ip: Long, ranges: List<IpRange>) =
-        ! ranges.any { ip >= it.first && ip <= it.second }
