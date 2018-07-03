@@ -78,8 +78,21 @@ object Day21Spec : Spek({
                 "abcde".applyScramblingOperation(input) `should equal` "decab"
             }
         }
+        describe("reverse positions") {
+            val input = "abcdef"
+            it("should reverse substring") {
+                reversePositions(input, 1, 3) `should equal` "adcbef"
+            }
+        }
     }
 })
+
+fun reversePositions(input: String, p1: Int, p2: Int): String {
+    val before = input.substring(0, p1)
+    val after = input.substring(p2+1)
+    val toReverse = input.substring(p1, p2+1)
+    return before + StringBuilder(toReverse).reverse() + after
+}
 
 private fun String.applyScramblingOperation(input: List<ScramblingOperation>) = input.fold(this) { acc, current -> current(acc) }
 
@@ -97,20 +110,36 @@ fun createMove(p1: Int, p2: Int): ScramblingOperation = { input ->
     strList.joinToString("")
 }
 
-fun createRotateLeft(n: Int): ScramblingOperation = { input -> "bcdea"}
+fun createRotateLeft(n: Int): ScramblingOperation = { input -> rotateLeft(input, n) }
 
-fun createReversePositions(p1: Int, p2: Int): ScramblingOperation = { input -> "abcde"}
+fun createReversePositions(p1: Int, p2: Int): ScramblingOperation = { input -> reversePositions(input, p1, p2)}
 
-fun createSwapLetter(c1: Char, c2: Char): ScramblingOperation = { input -> "edcba"}
+fun createSwapLetter(c1: Char, c2: Char): ScramblingOperation = { input -> input.replace(c1, '#').replace(c2, c1).replace('#', c2) }
 
-fun createSwapPosition(p1: Int, p2: Int): ScramblingOperation = { input -> "ebcda"}
+fun createSwapPosition(p1: Int, p2: Int): ScramblingOperation = { input ->
+    val strList = input.toMutableList()
+    val swap = strList[p1]
+    strList[p1] = strList[p2]
+    strList[p2] = swap
+    strList.joinToString("")
+}
 
 fun rotateRight(input: String, n: Int): String =
     when {
         n == 0 -> input
-        input.length == 0 -> input
+        input.isEmpty() -> input
         else -> {
             val rotated = rotateRight(input, n - 1)
             rotated[rotated.length - 1] + rotated.substring(0, rotated.length - 1)
         }
     }
+
+fun rotateLeft(input: String, n: Int): String =
+        when {
+            n == 0 -> input
+            input.isEmpty() -> input
+            else -> {
+                val rotated = rotateRight(input, n - 1)
+                rotated.substring(1) + rotated[0]
+            }
+        }
