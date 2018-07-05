@@ -56,9 +56,116 @@ After these steps, the resulting scrambled password is decab.
 Now, you just need to generate a new scrambled password and you can access the system.
 Given the list of scrambling operations in your puzzle input, what is the result of scrambling abcdefgh?
 
+--- Part Two ---
+
+You scrambled the password correctly, but you discover that you can't actually modify the password file on the system.
+You'll need to un-scramble one of the existing passwords by reversing the scrambling process.
+
+What is the un-scrambled version of the scrambled password fbgdceah?
+
  */
 
 typealias ScramblingOperation = (String) -> String
+
+fun String.applyScramblingOperations(input: List<ScramblingOperation>) = input.fold(this) { acc, current -> current(acc) }
+
+fun parseScramblingOperations(input: List<String>) = input.map {
+    parseScramblingOperation(it)
+}
+
+fun parseScramblingOperation(input: String): ScramblingOperation {
+    val parts = input.split(" ")
+    val operation = parts[0]
+    return when (operation) {
+        "move" -> createMove(parts[2].toInt(), parts[5].toInt())
+        "swap" -> when(parts[1]) {
+            "position" -> createSwapPosition(parts[2].toInt(), parts[5].toInt())
+            "letter" -> createSwapLetter(parts[2][0], parts[5][0])
+            else -> throw IllegalArgumentException("swap ${parts[1]} unkown")
+        }
+        "reverse" ->  createReversePositions(parts[2].toInt(), parts[4].toInt())
+        "rotate" -> when(parts[1]) {
+            "left" -> createRotateLeft(parts[2].toInt())
+            "right" -> createRotateRight(parts[2].toInt())
+            "based" -> createRotateLetter(parts[6][0])
+            else -> throw IllegalArgumentException("rotate ${parts[1]} unkown")
+        }
+        else -> throw IllegalArgumentException("unkown ${operation}")
+    }
+}
+
+fun createRotateLetter(c: Char, reverse: Boolean = false): ScramblingOperation = { input ->
+    if (reverse) {
+        "abdec"
+    } else {
+        val pos = input.indexOf(c)
+        val rotate = if (pos >= 4) pos + 2 else pos + 1
+        rotateRight(input, rotate)
+    }
+}
+
+fun createMove(p1: Int, p2: Int, reverse: Boolean = false): ScramblingOperation =
+    if (reverse) createMove(p2, p1)
+    else { input ->
+        val strList = input.toMutableList()
+        val c = strList[p1]
+        strList.removeAt(p1)
+        strList.add(p2, c)
+        strList.joinToString("")
+    }
+
+
+fun createRotateLeft(n: Int, reverse: Boolean = false): ScramblingOperation = { input ->
+    if (reverse) rotateRight(input, n)
+    else rotateLeft(input, n)
+}
+
+fun createRotateRight(n: Int, reverse: Boolean = false): ScramblingOperation = { input ->
+    if (reverse) rotateLeft(input, n)
+    else rotateRight(input, n)
+}
+
+fun createReversePositions(p1: Int, p2: Int): ScramblingOperation = { input -> reversePositions(input, p1, p2) }
+
+fun createSwapLetter(c1: Char, c2: Char): ScramblingOperation = { input ->
+    input.replace(c1, '#').replace(c2, c1).replace('#', c2)
+}
+
+fun createSwapPosition(p1: Int, p2: Int): ScramblingOperation = { input ->
+    val strList = input.toMutableList()
+    val swap = strList[p1]
+    strList[p1] = strList[p2]
+    strList[p2] = swap
+    strList.joinToString("")
+}
+
+fun rotateRight(input: String, n: Int): String =
+        when {
+            n == 0 -> input
+            input.isEmpty() -> input
+            else -> {
+                val rotated = rotateRight(input, n - 1)
+                rotated[rotated.length - 1] + rotated.substring(0, rotated.length - 1)
+            }
+        }
+
+fun rotateLeft(input: String, n: Int): String =
+        when {
+            n == 0 -> input
+            input.isEmpty() -> input
+            else -> {
+                val rotated = rotateLeft(input, n - 1)
+                rotated.substring(1) + rotated[0]
+            }
+        }
+
+
+fun reversePositions(input: String, p1: Int, p2: Int): String {
+    val before = input.substring(0, p1)
+    val after = input.substring(p2+1)
+    val toReverse = input.substring(p1, p2+1)
+    return before + StringBuilder(toReverse).reverse() + after
+}
 
 object Day21Spec : Spek({
 
@@ -117,88 +224,22 @@ object Day21Spec : Spek({
         }
 
     }
-})
-
-fun reversePositions(input: String, p1: Int, p2: Int): String {
-    val before = input.substring(0, p1)
-    val after = input.substring(p2+1)
-    val toReverse = input.substring(p1, p2+1)
-    return before + StringBuilder(toReverse).reverse() + after
-}
-
-fun String.applyScramblingOperations(input: List<ScramblingOperation>) = input.fold(this) { acc, current -> current(acc) }
-
-fun parseScramblingOperations(input: List<String>) = input.map {
-    parseScramblingOperation(it)
-}
-
-fun parseScramblingOperation(input: String): ScramblingOperation {
-    val parts = input.split(" ")
-    val operation = parts[0]
-    return when (operation) {
-        "move" -> createMove(parts[2].toInt(), parts[5].toInt())
-        "swap" -> when(parts[1]) {
-            "position" -> createSwapPosition(parts[2].toInt(), parts[5].toInt())
-            "letter" -> createSwapLetter(parts[2][0], parts[5][0])
-            else -> throw IllegalArgumentException("swap ${parts[1]} unkown")
-        }
-        "reverse" ->  createReversePositions(parts[2].toInt(), parts[4].toInt())
-        "rotate" -> when(parts[1]) {
-            "left" -> createRotateLeft(parts[2].toInt())
-            "right" -> createRotateRight(parts[2].toInt())
-            "based" -> createRotateLetter(parts[6][0])
-            else -> throw IllegalArgumentException("rotate ${parts[1]} unkown")
-        }
-        else -> throw IllegalArgumentException("unkown ${operation}")
-    }
-}
-
-fun createRotateLetter(c: Char): ScramblingOperation = { input ->
-    val pos = input.indexOf(c)
-    val rotate = if (pos >= 4) pos + 2 else pos + 1
-    rotateRight(input, rotate)
-}
-
-fun createMove(p1: Int, p2: Int): ScramblingOperation = { input ->
-    val strList = input.toMutableList()
-    val c = strList[p1]
-    strList.removeAt(p1)
-    strList.add(p2, c)
-    strList.joinToString("")
-}
-
-fun createRotateLeft(n: Int): ScramblingOperation = { input -> rotateLeft(input, n) }
-
-fun createRotateRight(n: Int): ScramblingOperation = { input -> rotateRight(input, n) }
-
-fun createReversePositions(p1: Int, p2: Int): ScramblingOperation = { input -> reversePositions(input, p1, p2)}
-
-fun createSwapLetter(c1: Char, c2: Char): ScramblingOperation = { input -> input.replace(c1, '#').replace(c2, c1).replace('#', c2) }
-
-fun createSwapPosition(p1: Int, p2: Int): ScramblingOperation = { input ->
-    val strList = input.toMutableList()
-    val swap = strList[p1]
-    strList[p1] = strList[p2]
-    strList[p2] = swap
-    strList.joinToString("")
-}
-
-fun rotateRight(input: String, n: Int): String =
-    when {
-        n == 0 -> input
-        input.isEmpty() -> input
-        else -> {
-            val rotated = rotateRight(input, n - 1)
-            rotated[rotated.length - 1] + rotated.substring(0, rotated.length - 1)
-        }
-    }
-
-fun rotateLeft(input: String, n: Int): String =
-        when {
-            n == 0 -> input
-            input.isEmpty() -> input
-            else -> {
-                val rotated = rotateLeft(input, n - 1)
-                rotated.substring(1) + rotated[0]
+    describe("part 2") {
+        given("example") {
+            val input = listOf<ScramblingOperation>(
+                createSwapPosition(4, 0),
+                createSwapLetter('d', 'b'),
+                createReversePositions(0, 4),
+                createRotateLeft(1, true),
+                createMove(1, 4, true),
+                createMove(3, 0, true),
+                createRotateLetter('b', true),
+                createRotateLetter('d', true)
+            )
+            it("should find the correctly unscrambled value") {
+                "decab".applyScramblingOperations(input.reversed()) `should equal` "abcde"
             }
         }
+    }
+})
+
