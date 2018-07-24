@@ -143,10 +143,11 @@ object Day22Spec : Spek({
                     "Filesystem              Size  Used  Avail  Use%",
                     "/dev/grid/node-x0-y0     94T   70T    24T   77%",
                     "/dev/grid/node-x0-y1     87T    7T    80T   73%",
-                    "/dev/grid/node-x1-y0     94T   14T    80T   71%",
+                    "/dev/grid/node-x1-y0     94T    0T    80T   0%",
                     "/dev/grid/node-x1-y1     89T   69T    20T   77%"
             )
             val input = parseStorageCluster(inputStrings)
+            val grid = createGrid(input)
             it ("should be parsed correctly") {
                 input.size `should equal` 4
                 input[0] `should equal` StorageNode("node-x0-y0", Pair(0, 0), 94, 70)
@@ -155,10 +156,45 @@ object Day22Spec : Spek({
                 findViablePairs(input) `should equal` listOf(
                         Pair("node-x0-y0", "node-x0-y1"), Pair("node-x0-y0", "node-x1-y0"),
                         Pair("node-x0-y1", "node-x0-y0"), Pair("node-x0-y1", "node-x1-y0"), Pair("node-x0-y1", "node-x1-y1"),
-                        Pair("node-x1-y0", "node-x0-y0"), Pair("node-x1-y0", "node-x0-y1"), Pair("node-x1-y0", "node-x1-y1"),
                         Pair("node-x1-y1", "node-x0-y1"), Pair("node-x1-y1", "node-x1-y0")
                 )
             }
+            it("should print grid") {
+                printGrid(grid)
+            }
+            it("should find empty node") {
+                val emptyNodePos = findEmptyNode(grid)
+                emptyNodePos `should equal` Pair(1, 0)
+            }
+        }
+        given("example") {
+            val inputStrings = listOf(
+                "root@ebhq-gridcenter# df -h",
+                "Filesystem            Size  Used  Avail  Use%",
+                "/dev/grid/node-x0-y0   10T    8T     2T   80%",
+                "/dev/grid/node-x0-y1   11T    6T     5T   54%",
+                "/dev/grid/node-x0-y2   32T   28T     4T   87%",
+                "/dev/grid/node-x1-y0    9T    7T     2T   77%",
+                "/dev/grid/node-x1-y1    8T    0T     8T    0%",
+                "/dev/grid/node-x1-y2   11T    7T     4T   63%",
+                "/dev/grid/node-x2-y0   10T    6T     4T   60%",
+                "/dev/grid/node-x2-y1    9T    8T     1T   88%",
+                "/dev/grid/node-x2-y2    9T    6T     3T   66%"
+            )
+            val input = parseStorageCluster(inputStrings)
+            val grid = createGrid(input)
+            it("should print grid") {
+                printGrid(grid)
+            }
+            it("should find empty node") {
+                val emptyNodePos = findEmptyNode(grid)
+                emptyNodePos `should equal` Pair(1, 1)
+            }
+            it("should count steps") {
+                val steps = countSteps(grid)
+                steps `should equal` 7
+            }
+
         }
         given("exercise") {
             val inputString = readTrimedLinesFromResource("day22Input.txt")
@@ -171,9 +207,36 @@ object Day22Spec : Spek({
                 val grid = createGrid(input)
                 printGrid(grid)
             }
+            it("should count steps") {
+                val grid = createGrid(input)
+                val steps = countSteps(grid)
+                steps `should equal` -1 // TODO
+            }
         }
     }
 })
+
+fun countSteps(grid: Array<Array<StorageNode?>>): Int {
+    val stepsToMoveGoalToTarget = countStepsToMoveGoalToTarget(grid)
+    return countStepsToMoveEmptyNodeToGoal(grid) +
+            stepsToMoveGoalToTarget +
+            4 * (stepsToMoveGoalToTarget - 1) // move empty node arround
+}
+
+fun countStepsToMoveEmptyNodeToGoal(grid: Array<Array<StorageNode?>>) = 1
+
+fun countStepsToMoveGoalToTarget(grid: Array<Array<StorageNode?>>) = 2
+
+fun findEmptyNode(grid: Array<Array<StorageNode?>>): Pair<Int, Int> {
+    grid.forEachIndexed { y, row ->
+        row.forEachIndexed { x, storageNode ->
+            println(storageNode?.used)
+            if (storageNode?.used == 0) findEmptyNode@return Pair(x, y)
+        }
+    }
+    throw IllegalArgumentException("No empty node")
+}
+
 
 fun findViablePairs(input: List<StorageNode>) = input.flatMap { node1 ->
     input.mapNotNull { node2 ->
