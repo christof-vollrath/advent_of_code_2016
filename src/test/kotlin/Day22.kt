@@ -3,6 +3,7 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.given
 import org.jetbrains.spek.api.dsl.it
+import kotlin.coroutines.experimental.buildSequence
 
 /*
 
@@ -136,66 +137,59 @@ What is the fewest number of steps required to move your goal data to node-x0-y0
 
 object Day22Spec : Spek({
 
+    val simpleExampleInputStrings = listOf(
+            "root@ebhq-gridcenter# df -h",
+            "Filesystem              Size  Used  Avail  Use%",
+            "/dev/grid/node-x0-y0     94T   70T    24T   77%",
+            "/dev/grid/node-x0-y1     87T    7T    80T   73%",
+            "/dev/grid/node-x1-y0     89T   69T    20T   77%",
+            "/dev/grid/node-x1-y1     94T    0T    80T   0%"
+    )
+
+    val exampleInputStrings = listOf(
+            "root@ebhq-gridcenter# df -h",
+            "Filesystem            Size  Used  Avail  Use%",
+            "/dev/grid/node-x0-y0   10T    8T     2T   80%",
+            "/dev/grid/node-x0-y1   11T    6T     5T   54%",
+            "/dev/grid/node-x0-y2   32T   28T     4T   87%",
+            "/dev/grid/node-x1-y0    9T    7T     2T   77%",
+            "/dev/grid/node-x1-y1    8T    0T     8T    0%",
+            "/dev/grid/node-x1-y2   11T    7T     4T   63%",
+            "/dev/grid/node-x2-y0   10T    6T     4T   60%",
+            "/dev/grid/node-x2-y1    9T    8T     1T   88%",
+            "/dev/grid/node-x2-y2    9T    6T     3T   66%"
+    )
+
+    val exampleWithWallInputStrings = listOf(
+            "root@ebhq-gridcenter# df -h",
+            "Filesystem            Size   Used  Avail  Use%",
+            "/dev/grid/node-x0-y0    10T    8T     2T   80%",
+            "/dev/grid/node-x0-y1    11T    6T     5T   54%",
+            "/dev/grid/node-x0-y2    32T   28T     4T   87%",
+            "/dev/grid/node-x1-y0     9T    7T     2T   77%",
+            "/dev/grid/node-x1-y1   200T  200T     0T  100%",
+            "/dev/grid/node-x1-y2     8T    0T     8T    0%",
+            "/dev/grid/node-x2-y0    10T    6T     4T   60%",
+            "/dev/grid/node-x2-y1   200T  200T     0T  100%",
+            "/dev/grid/node-x2-y2     9T    6T     3T   66%"
+    )
+
     describe("part 1") {
         given("simple example") {
-            val inputStrings = listOf(
-                    "root@ebhq-gridcenter# df -h",
-                    "Filesystem              Size  Used  Avail  Use%",
-                    "/dev/grid/node-x0-y0     94T   70T    24T   77%",
-                    "/dev/grid/node-x0-y1     87T    7T    80T   73%",
-                    "/dev/grid/node-x1-y0     94T    0T    80T   0%",
-                    "/dev/grid/node-x1-y1     89T   69T    20T   77%"
-            )
-            val input = parseStorageCluster(inputStrings)
-            val grid = createGrid(input)
+            val input = parseStorageCluster(simpleExampleInputStrings)
             it ("should be parsed correctly") {
                 input.size `should equal` 4
                 input[0] `should equal` StorageNode("node-x0-y0", Pair(0, 0), 94, 70)
             }
             it("should find the correct viable pairs") {
                 findViablePairs(input) `should equal` listOf(
-                        Pair("node-x0-y0", "node-x0-y1"), Pair("node-x0-y0", "node-x1-y0"),
+                        Pair("node-x0-y0", "node-x0-y1"), Pair("node-x0-y0", "node-x1-y1"),
                         Pair("node-x0-y1", "node-x0-y0"), Pair("node-x0-y1", "node-x1-y0"), Pair("node-x0-y1", "node-x1-y1"),
-                        Pair("node-x1-y1", "node-x0-y1"), Pair("node-x1-y1", "node-x1-y0")
+                        Pair("node-x1-y0", "node-x0-y1"), Pair("node-x1-y0", "node-x1-y1")
                 )
             }
-            it("should print grid") {
-                printGrid(grid)
-            }
-            it("should find empty node") {
-                val emptyNodePos = findEmptyNode(grid)
-                emptyNodePos `should equal` Pair(1, 0)
-            }
         }
-        given("example") {
-            val inputStrings = listOf(
-                "root@ebhq-gridcenter# df -h",
-                "Filesystem            Size  Used  Avail  Use%",
-                "/dev/grid/node-x0-y0   10T    8T     2T   80%",
-                "/dev/grid/node-x0-y1   11T    6T     5T   54%",
-                "/dev/grid/node-x0-y2   32T   28T     4T   87%",
-                "/dev/grid/node-x1-y0    9T    7T     2T   77%",
-                "/dev/grid/node-x1-y1    8T    0T     8T    0%",
-                "/dev/grid/node-x1-y2   11T    7T     4T   63%",
-                "/dev/grid/node-x2-y0   10T    6T     4T   60%",
-                "/dev/grid/node-x2-y1    9T    8T     1T   88%",
-                "/dev/grid/node-x2-y2    9T    6T     3T   66%"
-            )
-            val input = parseStorageCluster(inputStrings)
-            val grid = createGrid(input)
-            it("should print grid") {
-                printGrid(grid)
-            }
-            it("should find empty node") {
-                val emptyNodePos = findEmptyNode(grid)
-                emptyNodePos `should equal` Pair(1, 1)
-            }
-            it("should count steps") {
-                val steps = countSteps(grid)
-                steps `should equal` 7
-            }
 
-        }
         given("exercise") {
             val inputString = readTrimedLinesFromResource("day22Input.txt")
             val input = parseStorageCluster(inputString)
@@ -203,12 +197,97 @@ object Day22Spec : Spek({
                 val viablePairs = findViablePairs(input)
                 viablePairs.size `should equal` 934
             }
+        }
+    }
+
+    describe("part 2") {
+        given("simple example") {
+            val input = parseStorageCluster(simpleExampleInputStrings)
+            val grid = createGrid(input)
+
             it("should print grid") {
-                val grid = createGrid(input)
-                printGrid(grid)
+                val gridStr = printGrid(grid)
+                gridStr `should equal`
+                        """
+                @G
+                ._
+
+                """.trimIndent()
+                println("simple example:")
+                print(gridStr)
+            }
+            it("should find empty node") {
+                val emptyNodePos = findEmptyNode(grid)
+                emptyNodePos `should equal` Pair(1, 1)
+            }
+        }
+        given("example") {
+            val input = parseStorageCluster(exampleInputStrings)
+            val grid = createGrid(input)
+            it("should print grid") {
+                val gridStr = printGrid(grid)
+                gridStr `should equal`
+                        """
+                @.G
+                ._.
+                ...
+
+                """.trimIndent()
+                print(gridStr)
+            }
+            it("should find empty node") {
+                val emptyNodePos = findEmptyNode(grid)
+                emptyNodePos `should equal` Pair(1, 1)
+            }
+            it("should count steps to move empty node to goal") {
+                val steps = countStepsToMoveEmptyNodeToGoal(grid)
+                steps `should equal` 1
             }
             it("should count steps") {
-                val grid = createGrid(input)
+                val steps = countSteps(grid)
+                steps `should equal` 7
+            }
+        }
+        given("example with wall") {
+            val input = parseStorageCluster(exampleWithWallInputStrings)
+            val grid = createGrid(input)
+            it("should print grid") {
+                val gridStr = printGrid(grid)
+                gridStr `should equal`
+                        """
+                @.G
+                .##
+                ._.
+
+                """.trimIndent()
+                print(gridStr)
+            }
+            it("should find empty node") {
+                val emptyNodePos = findEmptyNode(grid)
+                emptyNodePos `should equal` Pair(1, 2)
+            }
+            it("should count steps to move empty node to goal") {
+                val steps = countStepsToMoveEmptyNodeToGoal(grid)
+                steps `should equal` 1
+            }
+            it("should count steps") {
+                val steps = countSteps(grid)
+                steps `should equal` 7
+            }
+        }
+        given("exercise") {
+            val inputString = readTrimedLinesFromResource("day22Input.txt")
+            val input = parseStorageCluster(inputString)
+            val grid = createGrid(input)
+            it("should print grid") {
+                val gridStr = printGrid(grid)
+                print(gridStr)
+            }
+            it("should count steps to move empty node to goal") {
+                val steps = countStepsToMoveEmptyNodeToGoal(grid)
+                steps `should equal` 15
+            }
+            it("should count steps") {
                 val steps = countSteps(grid)
                 steps `should equal` -1 // TODO
             }
@@ -223,14 +302,15 @@ fun countSteps(grid: Array<Array<StorageNode?>>): Int {
             4 * (stepsToMoveGoalToTarget - 1) // move empty node arround
 }
 
-fun countStepsToMoveEmptyNodeToGoal(grid: Array<Array<StorageNode?>>) = 1
+fun countStepsToMoveEmptyNodeToGoal(grid: Array<Array<StorageNode?>>) = with(findEmptyNode(grid)) {
+    first + (grid.size - 2 - second)
+}
 
-fun countStepsToMoveGoalToTarget(grid: Array<Array<StorageNode?>>) = 2
+fun countStepsToMoveGoalToTarget(grid: Array<Array<StorageNode?>>) = grid.size - 1
 
 fun findEmptyNode(grid: Array<Array<StorageNode?>>): Pair<Int, Int> {
     grid.forEachIndexed { y, row ->
         row.forEachIndexed { x, storageNode ->
-            println(storageNode?.used)
             if (storageNode?.used == 0) findEmptyNode@return Pair(x, y)
         }
     }
@@ -278,23 +358,23 @@ fun createGrid(nodes: List<StorageNode>): Array<Array<StorageNode?>> {
     return grid
 }
 
-fun printGrid(grid: Array<Array<StorageNode?>>) {
+fun printGrid(grid: Array<Array<StorageNode?>>) = buildSequence {
     grid.forEach { row ->
         row.forEach { node ->
             val c = when {
                 node == null -> ' '
                 node.pos == Pair(0, 0) -> '@'
-                node.pos == Pair(0, row.size-1) -> 'G'
+                node.pos == Pair(row.size-1, 0) -> 'G'
                 node.used == 0 -> '_'
                 node.used <= 100 -> '.'
                 node.used > 100 -> '#'
                 else -> '?'
             }
-            print(c)
+            yield(c)
         }
-        println()
+        yield('\n')
     }
-}
+}.joinToString("")
 
 data class StorageNode(val name: String, val pos: Pair<Int, Int>, val size: Int, val used: Int) {
     val avail: Int get() = size - used
