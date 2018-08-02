@@ -135,6 +135,103 @@ Unfortunately, each of these moves takes time, and we need to be efficient:
 What is the fewest number of steps required to move your goal data to node-x0-y0?
  */
 
+data class StorageNode(val name: String, val pos: Pair<Int, Int>, val size: Int, val used: Int) {
+    val avail: Int get() = size - used
+}
+
+fun findViablePairs(input: List<StorageNode>) = input.flatMap { node1 ->
+    input.mapNotNull { node2 ->
+        if (node1 != node2 && node1.used != 0 && node1.used < node2.avail) Pair(node1.name, node2.name)
+        else null
+    }
+}
+
+fun findMostLefFullNode(grid: Array<Array<StorageNode?>>) = findFullNodes(grid).minBy { it.pos.second }
+
+fun findFullNodes(grid: Array<Array<StorageNode?>>) = filterNodes(grid) { it.size > 100}
+
+fun countSteps(grid: Array<Array<StorageNode?>>): Int {
+    val stepsToMoveGoalToTarget = countStepsToMoveGoalToTarget(grid)
+    return countStepsToMoveEmptyNodeToGoal(grid) +
+            stepsToMoveGoalToTarget +
+            4 * (stepsToMoveGoalToTarget - 1) // move empty node arround
+}
+
+fun countStepsToMoveEmptyNodeToGoal(grid: Array<Array<StorageNode?>>) = with(findEmptyNode(grid).pos) {
+    val stepsToMoveTotheLeftOfTheWall = countStepsToMoveToTheLeftOfWall(grid, this)
+    second + (grid.size - 2 - first) + 2 * stepsToMoveTotheLeftOfTheWall
+}
+
+fun countStepsToMoveToTheLeftOfWall(grid: Array<Array<StorageNode?>>, emptyNodePos: Pair<Int, Int>) = with(findMostLefFullNode(grid)) {
+    when {
+        this == null -> 0
+        emptyNodePos.first < this.pos.first -> 0
+        else -> emptyNodePos.first - this.pos.first + 1
+    }
+}
+
+fun countStepsToMoveGoalToTarget(grid: Array<Array<StorageNode?>>) = grid.size - 1
+
+fun findEmptyNode(grid: Array<Array<StorageNode?>>) = filterNodes(grid) { it.used == 0 }.first()
+
+fun filterNodes(grid: Array<Array<StorageNode?>>, filter: (StorageNode) -> Boolean): List<StorageNode> = buildSequence {
+    grid.forEachIndexed { _, row ->
+        row.forEachIndexed { _, storageNode ->
+            if (storageNode != null && filter(storageNode)) yield(storageNode)
+        }
+    }
+}.toList().filterNotNull()
+
+fun parseStorageCluster(input: List<String>): List<StorageNode>  = input.drop(2).map { parseStorageNode(it) }
+
+fun parseStorageNode(input: String): StorageNode {
+    fun parseSize(str: String) = str.substring(0, str.length-1).toInt()
+    fun parseName(str: String): String {
+        val pathParts = str.split("/")
+        return pathParts[pathParts.size - 1]
+    }
+    fun parsePos(name: String): Pair<Int, Int> {
+        val nameParts = name.split("-")
+        val x = nameParts[1].substring(1).toInt()
+        val y = nameParts[2].substring(1).toInt()
+        return Pair(x, y)
+    }
+    val parts = input.split("""\s+""".toPattern())
+    val name = parseName(parts[0])
+    val pos = parsePos(name)
+    val size = parseSize(parts[1])
+    val used = parseSize(parts[2])
+    return StorageNode(name, pos, size, used)
+}
+
+fun createGrid(nodes: List<StorageNode>): Array<Array<StorageNode?>> {
+    val maxX = nodes.map { it.pos.first }.max() ?: 0
+    val maxY = nodes.map { it.pos.second }.max() ?: 0
+    val grid = Array(maxY+1, { Array<StorageNode?>(maxX+1, { null }) })
+    nodes.forEach {
+        grid[it.pos.second][it.pos.first] = it
+    }
+    return grid
+}
+
+fun printGrid(grid: Array<Array<StorageNode?>>) = buildSequence {
+    grid.forEach { row ->
+        row.forEach { node ->
+            val c = when {
+                node == null -> ' '
+                node.pos == Pair(0, 0) -> '@'
+                node.pos == Pair(row.size-1, 0) -> 'G'
+                node.used == 0 -> '_'
+                node.used <= 100 -> '.'
+                node.used > 100 -> '#'
+                else -> '?'
+            }
+            yield(c)
+        }
+        yield('\n')
+    }
+}.joinToString("")
+
 object Day22Spec : Spek({
 
     val simpleExampleInputStrings = listOf(
@@ -213,12 +310,11 @@ object Day22Spec : Spek({
                 ._
 
                 """.trimIndent()
-                println("simple example:")
                 print(gridStr)
             }
             it("should find empty node") {
-                val emptyNodePos = findEmptyNode(grid)
-                emptyNodePos `should equal` Pair(1, 1)
+                val emptyNode = findEmptyNode(grid)
+                emptyNode.pos `should equal` Pair(1, 1)
             }
         }
         given("example") {
@@ -236,8 +332,8 @@ object Day22Spec : Spek({
                 print(gridStr)
             }
             it("should find empty node") {
-                val emptyNodePos = findEmptyNode(grid)
-                emptyNodePos `should equal` Pair(1, 1)
+                val emptyNode = findEmptyNode(grid)
+                emptyNode.pos `should equal` Pair(1, 1)
             }
             it("should count steps to move empty node to goal") {
                 val steps = countStepsToMoveEmptyNodeToGoal(grid)
@@ -263,16 +359,20 @@ object Day22Spec : Spek({
                 print(gridStr)
             }
             it("should find empty node") {
-                val emptyNodePos = findEmptyNode(grid)
-                emptyNodePos `should equal` Pair(1, 2)
+                val emptyNode = findEmptyNode(grid)
+                emptyNode.pos `should equal` Pair(1, 2)
+            }
+            it("should find most left full node") {
+                val mostLeftFullNode = findMostLefFullNode(grid)
+                mostLeftFullNode?.pos `should equal` Pair(1, 1)
             }
             it("should count steps to move empty node to goal") {
                 val steps = countStepsToMoveEmptyNodeToGoal(grid)
-                steps `should equal` 1
+                steps `should equal` 4
             }
             it("should count steps") {
                 val steps = countSteps(grid)
-                steps `should equal` 7
+                steps `should equal` 10
             }
         }
         given("exercise") {
@@ -285,97 +385,12 @@ object Day22Spec : Spek({
             }
             it("should count steps to move empty node to goal") {
                 val steps = countStepsToMoveEmptyNodeToGoal(grid)
-                steps `should equal` 15
+                steps `should equal` 61
             }
             it("should count steps") {
                 val steps = countSteps(grid)
-                steps `should equal` -1 // TODO
+                steps `should equal` 207
             }
         }
     }
 })
-
-fun countSteps(grid: Array<Array<StorageNode?>>): Int {
-    val stepsToMoveGoalToTarget = countStepsToMoveGoalToTarget(grid)
-    return countStepsToMoveEmptyNodeToGoal(grid) +
-            stepsToMoveGoalToTarget +
-            4 * (stepsToMoveGoalToTarget - 1) // move empty node arround
-}
-
-fun countStepsToMoveEmptyNodeToGoal(grid: Array<Array<StorageNode?>>) = with(findEmptyNode(grid)) {
-    first + (grid.size - 2 - second)
-}
-
-fun countStepsToMoveGoalToTarget(grid: Array<Array<StorageNode?>>) = grid.size - 1
-
-fun findEmptyNode(grid: Array<Array<StorageNode?>>): Pair<Int, Int> {
-    grid.forEachIndexed { y, row ->
-        row.forEachIndexed { x, storageNode ->
-            if (storageNode?.used == 0) findEmptyNode@return Pair(x, y)
-        }
-    }
-    throw IllegalArgumentException("No empty node")
-}
-
-
-fun findViablePairs(input: List<StorageNode>) = input.flatMap { node1 ->
-    input.mapNotNull { node2 ->
-        if (node1 != node2 && node1.used != 0 && node1.used < node2.avail) Pair(node1.name, node2.name)
-        else null
-    }
-}
-
-
-fun parseStorageCluster(input: List<String>): List<StorageNode>  = input.drop(2).map { parseStorageNode(it) }
-
-fun parseStorageNode(input: String): StorageNode {
-    fun parseSize(str: String) = str.substring(0, str.length-1).toInt()
-    fun parseName(str: String): String {
-        val pathParts = str.split("/")
-        return pathParts[pathParts.size - 1]
-    }
-    fun parsePos(name: String): Pair<Int, Int> {
-        val nameParts = name.split("-")
-        val x = nameParts[1].substring(1).toInt()
-        val y = nameParts[2].substring(1).toInt()
-        return Pair(x, y)
-    }
-    val parts = input.split("""\s+""".toPattern())
-    val name = parseName(parts[0])
-    val pos = parsePos(name)
-    val size = parseSize(parts[1])
-    val used = parseSize(parts[2])
-    return StorageNode(name, pos, size, used)
-}
-
-fun createGrid(nodes: List<StorageNode>): Array<Array<StorageNode?>> {
-    val maxX = nodes.map { it.pos.first }.max() ?: 0
-    val maxY = nodes.map { it.pos.second }.max() ?: 0
-    val grid = Array(maxY+1, { Array<StorageNode?>(maxX+1, { null }) })
-    nodes.forEach {
-        grid[it.pos.second][it.pos.first] = it
-    }
-    return grid
-}
-
-fun printGrid(grid: Array<Array<StorageNode?>>) = buildSequence {
-    grid.forEach { row ->
-        row.forEach { node ->
-            val c = when {
-                node == null -> ' '
-                node.pos == Pair(0, 0) -> '@'
-                node.pos == Pair(row.size-1, 0) -> 'G'
-                node.used == 0 -> '_'
-                node.used <= 100 -> '.'
-                node.used > 100 -> '#'
-                else -> '?'
-            }
-            yield(c)
-        }
-        yield('\n')
-    }
-}.joinToString("")
-
-data class StorageNode(val name: String, val pos: Pair<Int, Int>, val size: Int, val used: Int) {
-    val avail: Int get() = size - used
-}
