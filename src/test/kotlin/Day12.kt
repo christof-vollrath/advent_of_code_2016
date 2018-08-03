@@ -61,16 +61,19 @@ register c needs to be initialized to the position of the ignition key.
 If you instead initialize register c to be 1, what value is now left in register a?
 
  */
-
-data class Cpu(var pc: Int = 0, val registers: Registers = mutableMapOf())
+abstract class AbstractCpu {
+    abstract var pc: Int
+    abstract val registers: Registers
+}
+data class Cpu(override var pc: Int = 0, override val registers: Registers = mutableMapOf()) : AbstractCpu()
 
 typealias Registers = MutableMap<Char, Int>
 typealias Inp = (Registers) -> Int
-typealias Instr = (Cpu) -> Cpu
+typealias Instr = (AbstractCpu) -> AbstractCpu
 
-fun parseCpuCommands(lines: List<String>) = lines.map { parseCpuInstruction(it) }
+fun parseCpuInstrs(lines: List<String>) = lines.map { parseCpuInstr(it) }
 
-fun parseCpuInstruction(instrStr: String): Instr {
+fun parseCpuInstr(instrStr: String): Instr {
     val instrParts = instrStr.split(" ")
     val instrCode = instrParts[0]
     when(instrCode) {
@@ -92,7 +95,7 @@ fun parseCpuInstruction(instrStr: String): Instr {
     }
 }
 
-private fun parseIncDec(dec: Boolean, instrParts: List<String>): (Cpu) -> Cpu {
+private fun parseIncDec(dec: Boolean, instrParts: List<String>): (AbstractCpu) -> AbstractCpu {
     val regStr = instrParts[1]
     val reg = parseRegister(regStr)
     if (dec) return { cpu -> inc(cpu, reg) }
@@ -109,34 +112,33 @@ fun parseRegister(to: String) = to[0]
 
 fun ref(registers: Registers, c: Char): Int = registers[c] ?: 0
 
-fun cpy(cpu: Cpu, input: Inp, c: Char): Cpu = cpu.apply() {
+fun cpy(cpu: AbstractCpu, input: Inp, c: Char): AbstractCpu = cpu.apply() {
     registers[c] = input(cpu.registers)
     incrPc(cpu)
 }
 
-
-fun jnz(cpu: Cpu, ref: Inp, incr: Inp): Cpu = cpu.apply() {
+fun jnz(cpu: AbstractCpu, ref: Inp, incr: Inp): AbstractCpu = cpu.apply() {
     if (ref(registers) != 0) cpu.pc += incr(registers)
     else incrPc(cpu)
 }
 
-fun inc(cpu: Cpu, reg: Char): Cpu = cpu.apply() {
+fun inc(cpu: AbstractCpu, reg: Char): AbstractCpu = cpu.apply() {
     registers[reg] = (registers[reg] ?: 0) + 1
     incrPc(cpu)
 }
 
-fun dec(cpu: Cpu, reg: Char): Cpu = cpu.apply() {
+fun dec(cpu: AbstractCpu, reg: Char): AbstractCpu = cpu.apply() {
     registers[reg] = (registers[reg] ?: 0) - 1
     incrPc(cpu)
 }
 
-private fun incrPc(cpu: Cpu) {
+private fun incrPc(cpu: AbstractCpu) {
     cpu.pc++
 }
 
-fun executeCpuCommands(cmds: List<Instr>, cpu: Cpu = Cpu(), debug: Boolean = false): Cpu {
-    while(cpu.pc in 0 until cmds.size) {
-        cmds[cpu.pc](cpu)
+fun executeCpuInstrs(instrs: List<Instr>, cpu: AbstractCpu = Cpu(), debug: Boolean = false): AbstractCpu {
+    while(cpu.pc in 0 until instrs.size) {
+        instrs[cpu.pc](cpu)
         if (debug) println(cpu)
     }
     return cpu
@@ -165,7 +167,7 @@ class Day12Spec : Spek({
         }
         given("copy instruction with constant as input string") {
             val cpu = Cpu()
-            val copyInstr: Instr = parseCpuInstruction("cpy 41 a")
+            val copyInstr: Instr = parseCpuInstr("cpy 41 a")
             it("should copy value to register") {
                 copyInstr(cpu)
                 cpu.pc `should equal` 1
@@ -174,7 +176,7 @@ class Day12Spec : Spek({
         }
         given("copy instruction with register as input string") {
             val cpu = Cpu(registers = mutableMapOf('b' to 42))
-            val copyInstr: Instr = parseCpuInstruction("cpy b a")
+            val copyInstr: Instr = parseCpuInstr("cpy b a")
             it("should copy register to other register") {
                 copyInstr(cpu)
                 cpu.pc `should equal` 1
@@ -183,7 +185,7 @@ class Day12Spec : Spek({
         }
         given("inc instruction for empty register as input string") {
             val cpu = Cpu()
-            val incInstr: Instr = parseCpuInstruction("inc a")
+            val incInstr: Instr = parseCpuInstr("inc a")
             it("should increment register") {
                 incInstr(cpu)
                 cpu.pc `should equal` 1
@@ -192,7 +194,7 @@ class Day12Spec : Spek({
         }
         given("inc instruction for register with value as input string") {
             val cpu = Cpu(registers = mutableMapOf('a' to 42))
-            val incInstr: Instr = parseCpuInstruction("inc a")
+            val incInstr: Instr = parseCpuInstr("inc a")
             it("should increment register") {
                 incInstr(cpu)
                 cpu.pc `should equal` 1
@@ -201,7 +203,7 @@ class Day12Spec : Spek({
         }
         given("dec instruction as input string") {
             val cpu = Cpu()
-            val decInstr: Instr = parseCpuInstruction("dec a")
+            val decInstr: Instr = parseCpuInstr("dec a")
             it("should decrement register") {
                 decInstr(cpu)
                 cpu.pc `should equal` 1
@@ -210,7 +212,7 @@ class Day12Spec : Spek({
         }
         given("jnz instruction as input string on an empty register") {
             val cpu = Cpu()
-            val jnzInstr: Instr = parseCpuInstruction("jnz a 2")
+            val jnzInstr: Instr = parseCpuInstr("jnz a 2")
             it("should not jump") {
                 jnzInstr(cpu)
                 cpu.pc `should equal` 1
@@ -218,7 +220,7 @@ class Day12Spec : Spek({
         }
         given("jnz instruction as input string on a non zero register") {
             val cpu = Cpu(registers = mutableMapOf('a' to 1))
-            val jnzInstr: Instr = parseCpuInstruction("jnz a 2")
+            val jnzInstr: Instr = parseCpuInstr("jnz a 2")
             it("should not jump") {
                 jnzInstr(cpu)
                 cpu.pc `should equal` 2
@@ -234,16 +236,16 @@ class Day12Spec : Spek({
                     jnz a 2
                     dec a
                     """
-                val commands = parseCpuCommands(parseTrimedLines(input))
-                val result = executeCpuCommands(commands, debug = true)
+                val commands = parseCpuInstrs(parseTrimedLines(input))
+                val result = executeCpuInstrs(commands, debug = true)
                 result.registers['a'] `should equal` 42
             }
         }
         describe("exercise") {
             given("exercise input") {
                 val input = readResource("day12Input.txt")
-                val commands = parseCpuCommands(parseTrimedLines(input))
-                val result = executeCpuCommands(commands)
+                val commands = parseCpuInstrs(parseTrimedLines(input))
+                val result = executeCpuInstrs(commands)
                 println(result.registers['a'])
                 result.registers['a'] `should equal` 318003
             }
@@ -253,9 +255,9 @@ class Day12Spec : Spek({
         describe("exercise") {
             given("exercise input") {
                 val input = readResource("day12Input.txt")
-                val commands = parseCpuCommands(parseTrimedLines(input))
+                val commands = parseCpuInstrs(parseTrimedLines(input))
                 val cpu = Cpu(registers = mutableMapOf('c' to 1))
-                val result = executeCpuCommands(commands, cpu)
+                val result = executeCpuInstrs(commands, cpu)
                 println(result.registers['a'])
                 result.registers['a'] `should equal` 9227657
             }
