@@ -55,6 +55,21 @@ and then send the value left in register a to the safe.
 
 What value should be sent to the safe?
 
+--- Part Two ---
+
+The safe doesn't open, but it does make several angry noises to express its frustration.
+
+You're quite sure your logic is working correctly, so the only other thing is... you check the painting again.
+As it turns out, colored eggs are still eggs. Now you count 12.
+
+As you run the program with this new input, the prototype computer begins to overheat.
+You wonder what's taking so long, and whether the lack of any instruction more powerful
+than "add one" has anything to do with it.
+Don't bunnies usually multiply?
+
+Anyway, what value should actually be sent to the safe?
+
+
  */
 
 import org.amshove.kluent.`should equal`
@@ -91,8 +106,11 @@ data class Tgl(val incr: String) : ToggleableInstruction() {
 fun tgl(cpu: Cpu2, incr: Inp): AbstractCpu = cpu.apply() {
     val pos = cpu.pc + incr(registers)
     if (pos < cpu.instructions.size) {
-        cpu.instructions[pos] = cpu.instructions[pos].toggle()
-    }
+//        cpu.instructions[pos] = cpu.instructions[pos].toggle()
+        val oldInstruction = cpu.instructions[pos]
+        val toggledInstruction = oldInstruction.toggle()
+        println("pc=$pc toggling=$pos oldInstruction=$oldInstruction toggledInstruction=$toggledInstruction")
+        cpu.instructions[pos] = toggledInstruction    }
     incrPc(cpu)
 }
 
@@ -185,6 +203,18 @@ class Day23Spec : Spek({
                 val instructions = parseCpuInstructions(parseTrimedLines(input))
                 it("should have the correct value in a") {
                     val result = executeCpuInstructions(Cpu2(instructions.toMutableList(), registers = mutableMapOf('a' to 7)))
+                    result.registers['a'] `should equal` 11424
+                }
+            }
+        }
+    }
+    describe("part 2") {
+        describe("exercise") {
+            given("the input") {
+                val input = readResource("day23Input.txt")
+                val instructions = parseCpuInstructions(parseTrimedLines(input))
+                xit("should have the correct value in a") {
+                    val result = executeCpuInstructions(Cpu2(instructions.toMutableList(), registers = mutableMapOf('a' to 12)), debug = true)
                     result.registers['a'] `should equal` 11424
                 }
             }
