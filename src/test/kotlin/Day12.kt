@@ -132,7 +132,7 @@ fun dec(cpu: AbstractCpu, reg: Char): AbstractCpu = cpu.apply() {
     incrPc(cpu)
 }
 
-private fun incrPc(cpu: AbstractCpu) {
+fun incrPc(cpu: AbstractCpu) {
     cpu.pc++
 }
 

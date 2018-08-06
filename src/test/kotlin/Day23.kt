@@ -59,39 +59,47 @@ What value should be sent to the safe?
 
 import org.amshove.kluent.`should equal`
 import org.jetbrains.spek.api.Spek
-import org.jetbrains.spek.api.dsl.describe
-import org.jetbrains.spek.api.dsl.given
-import org.jetbrains.spek.api.dsl.it
+import org.jetbrains.spek.api.dsl.*
 
-data class Cpu2(val instructions: MutableList<Instruction>, override var pc: Int = 0, override val registers: Registers = mutableMapOf()) : AbstractCpu()
+data class Cpu2(val instructions: MutableList<ToggleableInstruction>, override var pc: Int = 0, override val registers: Registers = mutableMapOf()) : AbstractCpu()
 
-sealed class Instruction {
-    abstract fun execute(before: AbstractCpu): AbstractCpu
+sealed class ToggleableInstruction {
+    abstract fun execute(before: Cpu2): AbstractCpu
+    abstract fun toggle(): ToggleableInstruction
 }
-data class Cpy(val ref: Inp, val reg: Char) : Instruction() {
-    override fun execute(before: AbstractCpu): AbstractCpu = cpy(before, ref, reg)
+data class Cpy(val ref: Inp, val reg: Char) : ToggleableInstruction() {
+    override fun execute(before: Cpu2): AbstractCpu = cpy(before, ref, reg)
+    override fun toggle() = Jnz(ref, reg.toString())
 }
-data class Jnz(val ref: Inp, val incr: Inp) : Instruction() {
-    override fun execute(before: AbstractCpu): AbstractCpu = jnz(before, ref, incr)
+data class Jnz(val ref: Inp, val incr: String) : ToggleableInstruction() {
+    override fun execute(before: Cpu2): AbstractCpu = jnz(before, ref, parseRef(incr))
+    override fun toggle() = Cpy(ref, incr[0])
 }
-data class Inc(val reg: Char) : Instruction() {
-    override fun execute(before: AbstractCpu): AbstractCpu = inc(before, reg)
+data class Inc(val reg: Char) : ToggleableInstruction() {
+    override fun execute(before: Cpu2): AbstractCpu = inc(before, reg)
+    override fun toggle() = Dec(reg)
 }
-data class Dec(val reg: Char) : Instruction() {
-    override fun execute(before: AbstractCpu): AbstractCpu = dec(before, reg)
+data class Dec(val reg: Char) : ToggleableInstruction() {
+    override fun execute(before: Cpu2): AbstractCpu = dec(before, reg)
+    override fun toggle() = Inc(reg)
 }
-data class Tgl(val incr: Inp) : Instruction() {
-    override fun execute(before: AbstractCpu): AbstractCpu = tgl(before, incr)
+data class Tgl(val incr: String) : ToggleableInstruction() {
+    override fun execute(before: Cpu2): AbstractCpu = tgl(before, parseRef(incr))
+    override fun toggle() = Inc(incr[0])
 }
 
-fun tgl(cpu: AbstractCpu, incr: Inp): AbstractCpu = cpu.apply() {
-    TODO("Tgl not implemented")
+fun tgl(cpu: Cpu2, incr: Inp): AbstractCpu = cpu.apply() {
+    val pos = cpu.pc + incr(registers)
+    if (pos < cpu.instructions.size) {
+        cpu.instructions[pos] = cpu.instructions[pos].toggle()
+    }
+    incrPc(cpu)
 }
 
 
 fun parseCpuInstructions(lines: List<String>) = lines.map { parseCpuInstruction(it) }
 
-fun parseCpuInstruction(instrStr: String): Instruction {
+fun parseCpuInstruction(instrStr: String): ToggleableInstruction {
     val instrParts = instrStr.split(" ")
     val instrCode = instrParts[0]
     return when(instrCode) {
@@ -104,13 +112,11 @@ fun parseCpuInstruction(instrStr: String): Instruction {
         "jnz" -> {
             val (_, refStr, toStr) = instrParts
             val ref = parseRef(refStr)
-            val to = parseRef(toStr)
-            Jnz(ref, to)
+            Jnz(ref, toStr)
         }
         "tgl" -> {
             val incrStr = instrParts[1]
-            val incr = parseRef(incrStr)
-            Tgl(incr)
+            Tgl(incrStr)
         }
         "inc" -> parseIncDecInstruction(true, instrParts)
         "dec" -> parseIncDecInstruction(false, instrParts)
@@ -118,16 +124,16 @@ fun parseCpuInstruction(instrStr: String): Instruction {
     }
 }
 
-private fun parseIncDecInstruction(dec: Boolean, instrParts: List<String>): Instruction {
+private fun parseIncDecInstruction(dec: Boolean, instrParts: List<String>): ToggleableInstruction {
     val regStr = instrParts[1]
     val reg = parseRegister(regStr)
     if (dec) return Inc(reg)
     else return Dec(reg)
 }
 
-fun executeCpuInstructions(instructions: List<Instruction>, cpu: AbstractCpu = Cpu2(instructions.toMutableList()), debug: Boolean = false): AbstractCpu {
-    while(cpu.pc in 0 until instructions.size) {
-        instructions[cpu.pc].execute(cpu)
+fun executeCpuInstructions(cpu: Cpu2, debug: Boolean = false): AbstractCpu {
+    while(cpu.pc in 0 until cpu.instructions.size) {
+        cpu.instructions[cpu.pc].execute(cpu)
         if (debug) println(cpu)
     }
     return cpu
@@ -147,8 +153,8 @@ class Day23Spec : Spek({
                     dec a
                     """
                 val instructions = parseCpuInstructions(parseTrimedLines(input))
-                val result = executeCpuInstructions(instructions, debug = true)
                 it("should have the correct value in a") {
+                    val result = executeCpuInstructions(Cpu2(instructions.toMutableList()), debug = true)
                     result.registers['a'] `should equal` 42
                 }
             }
@@ -167,9 +173,19 @@ class Day23Spec : Spek({
                     dec a
                     """
                 val instructions = parseCpuInstructions(parseTrimedLines(input))
-                val result = executeCpuInstructions(instructions, debug = true)
                 it("should have the correct value in a") {
+                    val result = executeCpuInstructions(Cpu2(instructions.toMutableList()), debug = true)
                     result.registers['a'] `should equal` 3
+                }
+            }
+        }
+        describe("exercise") {
+            given("the input") {
+                val input = readResource("day23Input.txt")
+                val instructions = parseCpuInstructions(parseTrimedLines(input))
+                it("should have the correct value in a") {
+                    val result = executeCpuInstructions(Cpu2(instructions.toMutableList(), registers = mutableMapOf('a' to 7)))
+                    result.registers['a'] `should equal` 11424
                 }
             }
         }
