@@ -62,17 +62,34 @@ class AirDuctGraph(
     ) : Set<AirDuctLocation> by locations {
         init {
             locations.forEach {
-                it.connections = findDirectConnections(it, this)
+                it.connections = findConnections(it, this)
             }
         }
 }
 
-fun findDirectConnections(location: AirDuctLocation, graph: AirDuctGraph) =
-        when {
-            location.pos == Pair(1, 1) && graph.locationByPos[Pair(2, 1)] != null -> setOf(Connection(graph.locationByPos[Pair(2, 1)]!!, 0))
-            location.pos == Pair(2, 1) && graph.locationByPos[Pair(1, 1)] != null -> setOf(Connection(graph.locationByPos[Pair(1, 1)]!!, 0))
-            else -> emptySet()
+fun findConnections(location: AirDuctLocation, graph: AirDuctGraph) =
+        adjacentPositions(location.pos, graph)
+                .mapNotNull {
+                    followConnection(graph, it, location.pos)
+                }
+                .toSet()
+
+fun followConnection(graph: AirDuctGraph, pos: Pos, from: Pos): Connection? {
+    var currentPos = pos
+    var currentFrom = from
+    var distance = 1
+    while (true) {
+        if (graph.locationByPos.contains(currentPos)) return Connection(graph.locationByPos[currentPos]!!, distance)
+        val adjacentPositions = adjacentPositions(currentPos, graph).filter { it != currentFrom }
+        when(adjacentPositions.size) {
+            0 -> return null // Nothing found
+            1 -> { currentFrom = currentPos; currentPos = adjacentPositions[0]; distance++ }
+            else -> throw IllegalStateException("Found junction which is not in graph")
         }
+
+    }
+}
+
 
 fun initLocationMap(locations: Set<AirDuctLocation>): Map<Pos, AirDuctLocation> = locations.map { Pair(it.pos, it) }.toMap()
 
@@ -194,8 +211,65 @@ class Day24Spec: Spek({
                 it("should be parsed to graph with these locations ") {
                     val airDuctGraph = parseAirDuctMap(input)
                     airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(2, 1), 1))
-                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!,  0))
-                    airDuctGraph.locationByPos[Pair(2, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 0))
+                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!,  1))
+                    airDuctGraph.locationByPos[Pair(2, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 1))
+                }
+            }
+            given("input map with two connected locations") {
+                val input = """
+                    #####
+                    #0.1#
+                    #####
+                """.trimIndent()
+                it("should be parsed to graph with these locations ") {
+                    val airDuctGraph = parseAirDuctMap(input)
+                    airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(3, 1), 1))
+                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(3, 1)]!!,  2))
+                    airDuctGraph.locationByPos[Pair(3, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 2))
+                }
+            }
+            given("input map with two connected locations and a difficult path") {
+                val input = """
+                    #########
+                    #0#...#1#
+                    #...#...#
+                    #########
+                """.trimIndent()
+                it("should be parsed to graph with these locations ") {
+                    val airDuctGraph = parseAirDuctMap(input)
+                    airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(7, 1), 1))
+                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(7, 1)]!!,  10))
+                    airDuctGraph.locationByPos[Pair(7, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 10))
+                }
+            }
+            given("input map with different locations and a dead end") {
+                val input = """
+                    ######
+                    #0....#
+                    ##1#2#
+                    #####
+                """.trimIndent()
+                it("should be parsed to graph with these locations ") {
+                    val airDuctGraph = parseAirDuctMap(input)
+                    airDuctGraph `should equal` setOf(
+                            AirDuctLocation(Pair(1, 1), 0),
+                            AirDuctLocation(Pair(2, 1)),
+                            AirDuctLocation(Pair(2, 2), 1),
+                            AirDuctLocation(Pair(4, 1)),
+                            AirDuctLocation(Pair(4, 2), 2)
+                    )
+                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!,  1))
+                    airDuctGraph.locationByPos[Pair(2, 1)]!!.connections `should equal` setOf(
+                            Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 1),
+                            Connection(airDuctGraph.locationByPos[Pair(2, 2)]!!, 1),
+                            Connection(airDuctGraph.locationByPos[Pair(4, 1)]!!, 2)
+                    )
+                    airDuctGraph.locationByPos[Pair(2, 2)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!,  1))
+                    airDuctGraph.locationByPos[Pair(4, 1)]!!.connections `should equal` setOf(
+                            Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!, 2),
+                            Connection(airDuctGraph.locationByPos[Pair(4, 2)]!!, 1)
+                    )
+                    airDuctGraph.locationByPos[Pair(4, 2)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(4, 1)]!!,  1))
                 }
             }
         }
@@ -205,6 +279,7 @@ class Day24Spec: Spek({
                     #####
                     #0..#
                     ##1##
+                    #####
                 """.trimIndent()
                 val graph = parseAirDuctMap(input)
                 it("should find adjacent positions") {
