@@ -67,6 +67,10 @@ class AirDuctGraph(
         }
 }
 
+data class AirDuctPathElement(val location: AirDuctLocation, val distance: Int = 0)
+
+typealias AirDuctPath = List<AirDuctPathElement>
+
 fun findConnections(location: AirDuctLocation, graph: AirDuctGraph) =
         adjacentPositions(location.pos, graph)
                 .mapNotNull {
@@ -131,6 +135,10 @@ fun adjacentPositions(x: Int, y: Int, array: Array<Array<Char>>): Set<Pos> =
     .toSet()
 
 fun adjacentPositions(pos: Pos, graph: AirDuctGraph): Set<Pos> = adjacentPositions(pos.first, pos.second, graph.locationArray)
+
+fun findShortestPath(airDuctGraph: AirDuctGraph): Any {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+}
 
 class Day24Spec: Spek({
     describe("part 1") {
@@ -317,6 +325,43 @@ class Day24Spec: Spek({
                     )
                 }
             }
+            given("exercise input") {
+                val input = readResource("day24Input.txt")
+                it ("should be parsed to a graph with 8 number nodes") {
+                    val airDuctGraph = parseAirDuctMap(input)
+                    val nrNodes = airDuctGraph.locations.size
+                    val nrNumberNodes = airDuctGraph.locations.filter { it.number != null }.size
+                    val nrJunctionNodes = airDuctGraph.locations.filter { it.number == null }.size
+                    println("Exercise graph contains $nrNodes nodes of which $nrNumberNodes are numbers and $nrJunctionNodes junctions")
+                    nrNumberNodes `should equal` 8  // 0 -7
+                }
+
+            }
+        }
+        describe("shortest path") {
+            given("example input map") {
+                val input = """
+                    ###########
+                    #0.1.....2#
+                    #.#######.#
+                    #4.......3#
+                    ###########
+                """.trimIndent()
+                val airDuctGraph = parseAirDuctMap(input)
+
+                it("should find the shortest path") {
+                    val airDuctPath = findShortestPath(airDuctGraph)
+                    airDuctPath `should equal` listOf(
+                            AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0), 0),
+                            AirDuctPathElement(AirDuctLocation(Pair(1, 3), 4), 2),
+                            AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0), 2),
+                            AirDuctPathElement(AirDuctLocation(Pair(3, 1), 1), 2),
+                            AirDuctPathElement(AirDuctLocation(Pair(9, 1), 2), 6),
+                            AirDuctPathElement(AirDuctLocation(Pair(9, 3), 3), 2)
+                    )
+                }
+            }
+
         }
         describe("adjacentPositions") {
             given("input map with a junction and some numbers") {
@@ -334,6 +379,7 @@ class Day24Spec: Spek({
         }
     }
 })
+
 
 
 
