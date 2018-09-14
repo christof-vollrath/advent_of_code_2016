@@ -49,13 +49,34 @@ required to visit every non-0 number marked on the map at least once?
 
 typealias Pos = Pair<Int, Int>
 
-data class Connection(val location: AirDuctLocation, val distance: Int)
+class Connection(val location: AirDuctLocation, val distance: Int) {
+    // Overwrite equals, hashcode, toString to avoid recursive calls from AirDuctLocation - Connection - AirDuctLocation
+    // In Connection for equality of AirDuctLocations only the pos is considered
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as Connection
+        if (location.pos != other.location.pos) return false // Compare only pos
+        if (distance != other.distance) return false
+        return true
+    }
 
-data class AirDuctLocation(val pos: Pair<Int, Int>, val number: Int? = null) {
-    lateinit var connections: Set<Connection>
+    override fun hashCode(): Int {
+        var result = location.pos.hashCode() // Use only pos
+        result = 31 * result + distance
+        return result
+    }
+
+    override fun toString(): String {
+        return "Connection(location=${location.pos}, distance=$distance)"
+    }
 }
 
-class AirDuctGraphWithJunctions(
+data class AirDuctLocation(val pos: Pair<Int, Int>, val number: Int? = null, var connections: Set<Connection> = emptySet()) {
+//    lateinit var connections: Set<Connection>
+}
+
+data class AirDuctGraphWithJunctions(
         val locations: Set<AirDuctLocation>,
         val locationArray: Array<Array<Char>>,
         val locationByPos: Map<Pos, AirDuctLocation> = initLocationMap(locations),
@@ -89,7 +110,7 @@ class AirDuctGraphWithJunctions(
     }
 }
 
-class AirDuctGraph(
+data class AirDuctGraph(
         val locations: Set<AirDuctLocation>,
         val start: AirDuctLocation
     ): Set<AirDuctLocation> by locations {
@@ -130,7 +151,12 @@ fun buildAirDuctMapFromArray(array: Array<Array<Char>>): AirDuctGraphWithJunctio
         array
     )
 
-fun parseAirDuctMap(input: String) = parseAirDuctMapWithJunctions(input)
+fun parseAirDuctMap(input: String): AirDuctGraph {
+    val airDuctGraphWithJunctions = parseAirDuctMapWithJunctions(input)
+    val startLocation = airDuctGraphWithJunctions.locationByNumber[0]!!
+    val locations = airDuctGraphWithJunctions.locations.filter { it.number != null }.toSet()
+    return AirDuctGraph(locations, startLocation)
+}
 
 fun parseAirDuctMapToArray(input: String): Array<Array<Char>> = with(parseTrimedLines(input)) {
     Array<Array<Char>>(size) {y ->
@@ -238,11 +264,11 @@ class Day24Spec: Spek({
             given("input map with one location") {
                 val input = """
                     #####
-                    #.1.#
+                    #.0.#
                     #####
                 """.trimIndent()
                 it("should be parsed to graph with that location") {
-                    parseAirDuctMapWithJunctions(input) `should equal` setOf(AirDuctLocation(Pair(2, 1), 1))
+                    parseAirDuctMapWithJunctions(input) `should equal` setOf(AirDuctLocation(Pair(2, 1), 0))
                 }
             }
             given("input map with two locations") {
@@ -283,9 +309,12 @@ class Day24Spec: Spek({
                 """.trimIndent()
                 it("should be parsed to graph with these locations ") {
                     val airDuctGraph = parseAirDuctMapWithJunctions(input)
-                    airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(2, 1), 1))
-                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!,  1))
-                    airDuctGraph.locationByPos[Pair(2, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 1))
+
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(2, 1), 1)
+                    location0.connections = setOf(Connection(location1, 1))
+                    location1.connections = setOf(Connection(location0, 1))
+                    airDuctGraph `should equal` setOf(location0, location1)
                 }
             }
             given("input map with two connected locations") {
@@ -296,9 +325,12 @@ class Day24Spec: Spek({
                 """.trimIndent()
                 it("should be parsed to graph with these locations ") {
                     val airDuctGraph = parseAirDuctMapWithJunctions(input)
-                    airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(3, 1), 1))
-                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(3, 1)]!!,  2))
-                    airDuctGraph.locationByPos[Pair(3, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 2))
+
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(3, 1), 1)
+                    location0.connections = setOf(Connection(location1, 2))
+                    location1.connections = setOf(Connection(location0, 2))
+                    airDuctGraph `should equal` setOf(location0, location1)
                 }
             }
             given("input map with two connected locations and a difficult path") {
@@ -310,9 +342,12 @@ class Day24Spec: Spek({
                 """.trimIndent()
                 it("should be parsed to graph with these locations ") {
                     val airDuctGraph = parseAirDuctMapWithJunctions(input)
-                    airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(7, 1), 1))
-                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(7, 1)]!!,  10))
-                    airDuctGraph.locationByPos[Pair(7, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 10))
+
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(7, 1), 1)
+                    location0.connections = setOf(Connection(location1, 10))
+                    location1.connections = setOf(Connection(location0, 10))
+                    airDuctGraph `should equal` setOf(location0, location1)
                 }
             }
             given("input map with different locations and a dead end") {
@@ -324,31 +359,18 @@ class Day24Spec: Spek({
                 """.trimIndent()
                 it("should be parsed to graph with these locations ") {
                     val airDuctGraph = parseAirDuctMapWithJunctions(input)
-                    airDuctGraph `should equal` setOf(
-                            AirDuctLocation(Pair(1, 1), 0),
-                            AirDuctLocation(Pair(2, 1)),
-                            AirDuctLocation(Pair(2, 2), 1),
-                            AirDuctLocation(Pair(4, 1)),
-                            AirDuctLocation(Pair(4, 2), 2)
-                    )
-                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(
-                            Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!,  1)
-                    )
-                    airDuctGraph.locationByPos[Pair(2, 1)]!!.connections `should equal` setOf(
-                            Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 1),
-                            Connection(airDuctGraph.locationByPos[Pair(2, 2)]!!, 1),
-                            Connection(airDuctGraph.locationByPos[Pair(4, 1)]!!, 2)
-                    )
-                    airDuctGraph.locationByPos[Pair(2, 2)]!!.connections `should equal` setOf(
-                            Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!,  1)
-                    )
-                    airDuctGraph.locationByPos[Pair(4, 1)]!!.connections `should equal` setOf(
-                            Connection(airDuctGraph.locationByPos[Pair(2, 1)]!!, 2),
-                            Connection(airDuctGraph.locationByPos[Pair(4, 2)]!!, 1)
-                    )
-                    airDuctGraph.locationByPos[Pair(4, 2)]!!.connections `should equal` setOf(
-                            Connection(airDuctGraph.locationByPos[Pair(4, 1)]!!,  1)
-                    )
+
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(2, 2), 1)
+                    val location2 = AirDuctLocation(Pair(4, 2), 2)
+                    val junctionA = AirDuctLocation(Pair(2, 1))
+                    val junctionB = AirDuctLocation(Pair(4, 1))
+                    location0.connections = setOf(Connection(junctionA, 1))
+                    location1.connections = setOf(Connection(junctionA, 1))
+                    location2.connections = setOf(Connection(junctionB, 1))
+                    junctionA.connections = setOf(Connection(location0, 1), Connection(location1, 1), Connection(junctionB, 2))
+                    junctionB.connections = setOf(Connection(location2, 1), Connection(junctionA, 2))
+                    airDuctGraph `should equal` setOf(location0, location1, location2, junctionA, junctionB)
                 }
             }
             given("example input map") {
@@ -407,11 +429,11 @@ class Day24Spec: Spek({
             given("input map with one location") {
                 val input = """
                     #####
-                    #.1.#
+                    #.0.#
                     #####
                 """.trimIndent()
                 it("should be parsed to graph with that location") {
-                    parseAirDuctMap(input) `should equal` setOf(AirDuctLocation(Pair(2, 1), 1))
+                    parseAirDuctMap(input) `should equal` setOf(AirDuctLocation(Pair(2, 1), 0))
                 }
             }
             given("input map with two connected locations") {
@@ -423,8 +445,9 @@ class Day24Spec: Spek({
                 it("should be parsed to graph with these locations ") {
                     val airDuctGraph = parseAirDuctMap(input)
                     airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(3, 1), 1))
-                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(3, 1)]!!,  2))
-                    airDuctGraph.locationByPos[Pair(3, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 2))
+                    airDuctGraph.locations `should equal` setOf(
+                            AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(3, 1), 1)
+                    )
                 }
             }
             given("input map with two connected locations and a difficult path with junctions") {
@@ -436,9 +459,11 @@ class Day24Spec: Spek({
                 """.trimIndent()
                 it("should be parsed to graph with these locations without junctions") {
                     val airDuctGraph = parseAirDuctMap(input)
-                    airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(7, 1), 1))
-                    airDuctGraph.locationByPos[Pair(1, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(7, 1)]!!,  10))
-                    airDuctGraph.locationByPos[Pair(7, 1)]!!.connections `should equal` setOf(Connection(airDuctGraph.locationByPos[Pair(1, 1)]!!, 10))
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(7, 1), 1)
+                    location0.connections = setOf(Connection(location1, 10))
+                    location1.connections = setOf(Connection(location0, 10))
+                    airDuctGraph `should equal` setOf(location0, location1)
                 }
             }
         }
