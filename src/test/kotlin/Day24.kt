@@ -116,11 +116,43 @@ data class AirDuctGraph(
     ): Set<AirDuctLocation> by locations {
     init {
         locations.forEach {
-            it.connections = findConnections(it)
+            it.connections = findDirectConnections(it)
         }
     }
 
-    private fun findConnections(location: AirDuctLocation): Set<Connection>  = emptySet()
+    private fun findDirectConnections(location: AirDuctLocation): Set<Connection> = findDirectConnectionsRec(location.connections.filter { it.location.number != null }.map { location.number!! to it }.toMap(), location.connections.filter { it.location.number == null }.toSet(), setOf(location))
+    private tailrec fun findDirectConnectionsRec(foundConnections: Map<Int, Connection>, connectionsToJunctions: Set<Connection>, visitedJunctions: Set<AirDuctLocation>): Set<Connection> =
+            if (connectionsToJunctions.isEmpty()) foundConnections.values.toSet()
+            else {
+                val nextVisitedJunctions = visitedJunctions + connectionsToJunctions.map { it.location }
+                val newConnectionMap = connectionsToJunctions.flatMap { connectionToJunction ->
+                    val junction = connectionToJunction.location
+                    val junctionDistance = connectionToJunction.distance
+                    junction.connections.mapNotNull { junctionConnection ->
+                        val junctionLocation = junctionConnection.location
+                        if (!nextVisitedJunctions.contains(junctionLocation) && junctionLocation.number != null) junctionLocation.number to Connection(junctionLocation, junctionDistance + junctionConnection.distance)
+                        else null
+                    }
+                }.toMap()
+                val nextFoundConnections = foundConnections.toMutableMap()
+                newConnectionMap.forEach { (number, connection) ->
+                    val existingConnection = nextFoundConnections[number]
+                    if (existingConnection != null) {
+                        if (existingConnection.distance > connection.distance) nextFoundConnections[number] = connection // use smaller connection
+                    } else nextFoundConnections[number] = connection
+                }
+                val nextConnectionsToJunctions = connectionsToJunctions.flatMap { connectionToJunction ->
+                    val junction = connectionToJunction.location
+                    val junctionDistance = connectionToJunction.distance
+                    junction.connections.mapNotNull { junctionConnection ->
+                        val junctionLocation = junctionConnection.location
+                        if (!nextVisitedJunctions.contains(junctionLocation) && junctionLocation.number == null)
+                            Connection(junctionLocation, junctionDistance + junctionConnection.distance)
+                        else null
+                    }
+                }.toSet()
+                findDirectConnectionsRec(nextFoundConnections, nextConnectionsToJunctions, nextVisitedJunctions)
+            }
 }
 
 data class AirDuctPathElement(val location: AirDuctLocation, val distance: Int = 0)
@@ -181,8 +213,8 @@ fun adjacentPositions(x: Int, y: Int, array: Array<Array<Char>>): Set<Pos> =
 
 fun adjacentPositions(pos: Pos, graph: AirDuctGraphWithJunctions): Set<Pos> = adjacentPositions(pos.first, pos.second, graph.locationArray)
 
-fun findShortestPath(airDuctGraph: AirDuctGraphWithJunctions): AirDuctPath {
-    val start = airDuctGraph.locationByNumber[0] ?: throw IllegalStateException("No starting node found")
+fun findShortestPath(airDuctGraph: AirDuctGraph): AirDuctPath {
+    val start = airDuctGraph.start
     val nodesToVisit = airDuctGraph.locations.mapNotNull { it.number } - 0
     val startPath = AirDuctPath(listOf(AirDuctPathElement(start,0)), 0)
     var searches = listOf(Pair(nodesToVisit - 0, startPath))
@@ -230,6 +262,9 @@ tailrec fun findShortestPath(searches: List<Pair<List<Int>, AirDuctPath>>): AirD
         return findShortestPath(purgeSearches(nextSearches))
     }
 }
+
+fun AirDuctPath.dropConnections() = copy(path = path.map { it.dropConnections() })
+private fun AirDuctPathElement.dropConnections() = copy(location = location.copy(connections = emptySet()))
 
 class Day24Spec: Spek({
     describe("part 1") {
@@ -429,10 +464,11 @@ class Day24Spec: Spek({
                 """.trimIndent()
                 it("should be parsed to graph with these locations ") {
                     val airDuctGraph = parseAirDuctMap(input)
-                    airDuctGraph `should equal` setOf(AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(3, 1), 1))
-                    airDuctGraph.locations `should equal` setOf(
-                            AirDuctLocation(Pair(1, 1), 0), AirDuctLocation(Pair(3, 1), 1)
-                    )
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(3, 1), 1)
+                    location0.connections = setOf(Connection(location1, 2))
+                    location1.connections = setOf(Connection(location0, 2))
+                    airDuctGraph `should equal` setOf(location0, location1)
                 }
             }
             given("input map with two connected locations and a difficult path with junctions") {
@@ -446,8 +482,8 @@ class Day24Spec: Spek({
                     val airDuctGraph = parseAirDuctMap(input)
                     val location0 = AirDuctLocation(Pair(1, 1), 0)
                     val location1 = AirDuctLocation(Pair(7, 1), 1)
-                    location0.connections = setOf(Connection(location1, 10))
-                    location1.connections = setOf(Connection(location0, 10))
+                    location0.connections = setOf(Connection(location1, 8))
+                    location1.connections = setOf(Connection(location0, 8))
                     airDuctGraph `should equal` setOf(location0, location1)
                 }
             }
@@ -473,7 +509,7 @@ class Day24Spec: Spek({
                     #0........#
                     ###########
                 """.trimIndent()
-                val airDuctGraph = parseAirDuctMapWithJunctions(input)
+                val airDuctGraph = parseAirDuctMap(input)
 
                 it("should find a path with only the starting node") {
                     val airDuctPath = findShortestPath(airDuctGraph)
@@ -491,14 +527,19 @@ class Day24Spec: Spek({
                     #0.......1#
                     ###########
                 """.trimIndent()
-                val airDuctGraph = parseAirDuctMapWithJunctions(input)
+                val airDuctGraph = parseAirDuctMap(input)
 
                 it("should find a path with only the starting node") {
                     val airDuctPath = findShortestPath(airDuctGraph)
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(9, 1), 1)
+                    location0.connections = setOf(Connection(location1, 8))
+                    location1.connections = setOf(Connection(location0, 8))
+
                     airDuctPath `should equal`  AirDuctPath(
                             listOf(
-                                AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0), 0),
-                                AirDuctPathElement(AirDuctLocation(Pair(9, 1), 1), 8)
+                                AirDuctPathElement(location0, 0),
+                                AirDuctPathElement(location1, 8)
                             ),
                             8
                     )
@@ -512,10 +553,10 @@ class Day24Spec: Spek({
                     #4.......3#
                     ###########
                 """.trimIndent()
-                val airDuctGraph = parseAirDuctMapWithJunctions(input)
+                val airDuctGraph = parseAirDuctMap(input)
 
                     it("should find the shortest path") {
-                    val airDuctPath = findShortestPath(airDuctGraph)
+                    val airDuctPath = findShortestPath(airDuctGraph).dropConnections()
                     airDuctPath `should equal` AirDuctPath(
                             listOf(
                                 AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0), 0),
@@ -531,10 +572,10 @@ class Day24Spec: Spek({
             }
             given("exercise input map") {
                 val input = readResource("day24Input.txt")
-                val airDuctGraph = parseAirDuctMapWithJunctions(input)
+                val airDuctGraph = parseAirDuctMap(input)
 
-                xit("should find the shortest path") {
-                    val airDuctPath = findShortestPath(airDuctGraph)
+                it("should find the shortest path") {
+                    val airDuctPath = findShortestPath(airDuctGraph).dropConnections()
                     airDuctPath `should equal` AirDuctPath(
                             listOf(
                                     AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0), 0),
