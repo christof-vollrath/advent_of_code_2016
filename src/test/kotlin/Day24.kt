@@ -120,7 +120,14 @@ data class AirDuctGraph(
         }
     }
 
-    private fun findDirectConnections(location: AirDuctLocation): Set<Connection> = findDirectConnectionsRec(location.connections.filter { it.location.number != null }.map { location.number!! to it }.toMap(), location.connections.filter { it.location.number == null }.toSet(), setOf(location))
+    private fun findDirectConnections(location: AirDuctLocation): Set<Connection> = findDirectConnectionsRec(
+            location.connections.filter { connection ->
+                connection.location.number != null
+            }
+            .map { it.location.number!! to it }.toMap(),
+            location.connections.filter { it.location.number == null }.toSet(),
+            setOf(location)
+    )
     private tailrec fun findDirectConnectionsRec(foundConnections: Map<Int, Connection>, connectionsToJunctions: Set<Connection>, visitedJunctions: Set<AirDuctLocation>): Set<Connection> =
             if (connectionsToJunctions.isEmpty()) foundConnections.values.toSet()
             else {
@@ -442,7 +449,6 @@ class Day24Spec: Spek({
                     println("Exercise graph contains $nrNodes nodes of which $nrNumberNodes are numbers and $nrJunctionNodes junctions")
                     nrNumberNodes `should equal` 8  // 0 -7
                 }
-
             }
         }
         describe("parse map to graph without junctions") {
@@ -487,6 +493,57 @@ class Day24Spec: Spek({
                     airDuctGraph `should equal` setOf(location0, location1)
                 }
             }
+            given("input map with three connected locations and a difficult path with junctions") {
+                val input = """
+                    #########
+                    #0#.#.#2#
+                    #...1...#
+                    #########
+                """.trimIndent()
+                it("should be parsed to graph with these locations without junctions") {
+                    val airDuctGraph = parseAirDuctMap(input)
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(4, 2), 1)
+                    val location2 = AirDuctLocation(Pair(7, 1), 2)
+                    location0.connections = setOf(Connection(location1, 4))
+                    location1.connections = setOf(Connection(location0, 4), Connection(location2, 4))
+                    location2.connections = setOf(Connection(location1, 4))
+                    airDuctGraph `should equal` setOf(location0, location1, location2)
+                }
+            }
+            given("example input map") {
+                val input = """
+                    ###########
+                    #0.1.....2#
+                    #.#######.#
+                    #4.......3#
+                    ###########
+                """.trimIndent()
+                it("should be parsed to graph with these locations ") {
+                    val airDuctGraph = parseAirDuctMap(input)
+                    val location0 = AirDuctLocation(Pair(1, 1), 0)
+                    val location1 = AirDuctLocation(Pair(3, 1), 1)
+                    val location2 = AirDuctLocation(Pair(9, 1), 2)
+                    val location3 = AirDuctLocation(Pair(9, 3), 3)
+                    val location4 = AirDuctLocation(Pair(1, 3), 4)
+                    location0.connections = setOf(Connection(location1, 2), Connection(location4, 2))
+                    location1.connections = setOf(Connection(location0, 2), Connection(location2, 6))
+                    location2.connections = setOf(Connection(location1, 6), Connection(location3, 2))
+                    location3.connections = setOf(Connection(location2, 2), Connection(location4, 8))
+                    location4.connections = setOf(Connection(location0, 2), Connection(location3, 8))
+
+                    airDuctGraph `should equal` setOf(location0, location1, location2, location3, location4)
+                }
+            }
+            given("exercise input") {
+                val input = readResource("day24Input.txt")
+                it ("should be parsed to a graph with 8 number nodes") {
+                    val airDuctGraph = parseAirDuctMap(input)
+                    val nrNodes = airDuctGraph.locations.size
+                    nrNodes `should equal` 8  // 0 -7
+                }
+            }
+
         }
         describe("adjacentPositions") {
             given("input map with a junction and some numbers") {
