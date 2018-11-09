@@ -164,7 +164,24 @@ data class AirDuctGraph(
 
 data class AirDuctPathElement(val location: AirDuctLocation, val distance: Int = 0)
 
-data class AirDuctPath(val path: List<AirDuctPathElement>, val length: Int)
+data class AirDuctPath(val path: List<AirDuctPathElement>, val length: Int) {
+    fun toCompactString() = path.map { it.location.number}.joinToString(" ") + " ($length)"
+}
+
+fun detectLoop(airDuctPath: AirDuctPath): Boolean {
+    getSnippets(airDuctPath).fold(mutableSetOf<Pair<Int?,Int?>>()) { snippetSet, snippet ->
+        if(snippet in snippetSet) detectLoop@return true
+        snippetSet.add(snippet)
+        snippetSet
+    }
+    return false
+}
+
+fun getSnippets(airDuctPath: AirDuctPath) = airDuctPath.path.map {
+            it.location.number
+        }
+        .zipWithNext { a, b ->  Pair(a, b)}
+
 
 fun initLocationMap(locations: Set<AirDuctLocation>): Map<Pos, AirDuctLocation> = locations.map { Pair(it.pos, it) }.toMap()
 fun initLocationMapByNumber(locations: Set<AirDuctLocation>): Map<Int, AirDuctLocation> = locations.mapNotNull {
@@ -224,19 +241,15 @@ fun findShortestPath(airDuctGraph: AirDuctGraph): AirDuctPath {
     val start = airDuctGraph.start
     val nodesToVisit = airDuctGraph.locations.mapNotNull { it.number } - 0
     val startPath = AirDuctPath(listOf(AirDuctPathElement(start,0)), 0)
-    var searches = listOf(Pair(nodesToVisit - 0, startPath))
-    return findShortestPath(searches)
+    var searches = listOf(Pair(nodesToVisit, startPath))
+    return if (nodesToVisit.isEmpty()) startPath
+    else findShortestPath(searches, null)
 }
 
-tailrec fun findShortestPath(searches: List<Pair<List<Int>, AirDuctPath>>): AirDuctPath {
+tailrec fun findShortestPath(searches: List<Pair<List<Int>, AirDuctPath>>, shortestPath: AirDuctPath?): AirDuctPath {
     fun expandPath(remainingNodes: List<Int>, path: AirDuctPath): List<Pair<List<Int>, AirDuctPath>> {
         val lastLocationInPath = path.path.last().location
-        val prevLocationInPath = if (path.path.size > 1) path.path[path.path.size - 2]
-        else null
-        val connections = lastLocationInPath.connections
-        val minimizedConnections = if (lastLocationInPath.number != null || prevLocationInPath == null) connections // for number nodes going back might be needed (in the example the path is 0 - 4 - 0
-        else connections.filter { it.location != prevLocationInPath.location } // but for junctions it doesn't make sense
-        return minimizedConnections.map {connection ->
+        return lastLocationInPath.connections.map {connection ->
             val nextRemainingNodes =
                     if (connection.location.number != null) remainingNodes - connection.location.number
                     else remainingNodes
@@ -244,21 +257,20 @@ tailrec fun findShortestPath(searches: List<Pair<List<Int>, AirDuctPath>>): AirD
             Pair(nextRemainingNodes, nextPath)
         }
     }
-    fun purgeSearches(searches: List<Pair<List<Int>, AirDuctPath>>): List<Pair<List<Int>, AirDuctPath>> {
-        val completePathes = searches.filter { it.first.size == 0 }
-        val shortestSolution = completePathes
-                .map { it.second }
-                .minBy { it.length }
-        val shortestSolutionLength = shortestSolution?.length ?: Int.MAX_VALUE
+    fun purgeSearches(searches: List<Pair<List<Int>, AirDuctPath>>, shortestPath: AirDuctPath?): List<Pair<List<Int>, AirDuctPath>> {
+        //println("Shortest: " + shortestPath?.toCompactString())
+        //searches.forEach { println(it.second.toCompactString()) }
+        val shortestPathLength = shortestPath?.length ?: Int.MAX_VALUE
         val purgedSearches = searches.filter {
-            it.first.size == 0 || it.second.length < shortestSolutionLength
+            it.second.length < shortestPathLength && // No search should be longer than the best solution found so far
+            !detectLoop(it.second)
         }
-        println("Interims=${searches.size} Completed=${completePathes.size} Purged=${purgedSearches.size}")
+        println("Interims=${searches.size} Shortest=$shortestPathLength  Purged=${purgedSearches.size} MinUncompleted=${purgedSearches.map{it.second}.minBy { it.length }?.length}")
         return purgedSearches
     }
     val moreToCheck = searches.any { it.first.size > 0}
     if (! moreToCheck) {
-        return searches.map { it.second }.minBy { it.length }!!
+        return shortestPath!!
     } else {
         val nextSearches = searches.flatMap {
             val remainingNodes = it.first
@@ -266,7 +278,16 @@ tailrec fun findShortestPath(searches: List<Pair<List<Int>, AirDuctPath>>): AirD
             if (remainingNodes.size == 0) listOf(it)
             else expandPath(remainingNodes, path)
         }
-        return findShortestPath(purgeSearches(nextSearches))
+        val completePathes = nextSearches.filter { it.first.size == 0 }.map { it.second }
+        val nextShortestPathCandidate = completePathes.minBy { it.length }
+        val nextShortestPath =
+                when {
+                    shortestPath == null -> nextShortestPathCandidate
+                    nextShortestPathCandidate == null -> shortestPath
+                    else -> if (nextShortestPathCandidate.length < shortestPath.length) nextShortestPathCandidate else shortestPath
+                }
+
+        return findShortestPath(purgeSearches(nextSearches, nextShortestPath), nextShortestPath)
     }
 }
 
@@ -559,6 +580,59 @@ class Day24Spec: Spek({
                 }
             }
         }
+        describe("getPathSnippets") {
+            given("empty AirDuctPath") {
+                val airDuctPath = AirDuctPath(emptyList(), 0)
+                it("should have empty path snippets") {
+                    getSnippets(airDuctPath) `should equal` emptyList()
+                }
+            }
+            given("AirDuctPath with one element") {
+                val airDuctPath = AirDuctPath(listOf(AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0))), 0)
+                it("should have empty path snippets") {
+                    getSnippets(airDuctPath) `should equal` emptyList()
+                }
+            }
+            given("AirDuctPath with two elements") {
+                val airDuctPath = AirDuctPath(listOf(
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0)),
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 2), 1))),
+                        1)
+                it("should have these two elements as snippet") {
+                    getSnippets(airDuctPath) `should equal` listOf(Pair(0, 1))
+                }
+            }
+            given("AirDuctPath with some elements") {
+                val airDuctPath = AirDuctPath(listOf(
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0)),
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 2), 1)),
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 3), 2)),
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 4), 3))),
+                        3)
+                it("should have more snippets") {
+                    getSnippets(airDuctPath) `should equal` listOf(Pair(0, 1), Pair(1, 2), Pair(2, 3))
+                }
+            }
+        }
+        describe("detectLoop") {
+            given("empty AirDuctPath") {
+                val airDuctPath = AirDuctPath(emptyList(), 0)
+                it("should not detect a loop") {
+                    detectLoop(airDuctPath) `should equal` false
+                }
+            }
+            given("AirDuctPath with a simple loop") {
+                val airDuctPath = AirDuctPath(listOf(
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0)),
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 2), 1)),
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0)),
+                        AirDuctPathElement(AirDuctLocation(Pair(1, 2), 1))),
+                        0)
+                it("should detect loop") {
+                    detectLoop(airDuctPath) `should equal` true
+                }
+            }
+        }
         describe("shortest path") {
             given("a map with only the starting node") {
                 val input = """
@@ -586,7 +660,7 @@ class Day24Spec: Spek({
                 """.trimIndent()
                 val airDuctGraph = parseAirDuctMap(input)
 
-                it("should find a path with only the starting node") {
+                it("should find the path between two nodes") {
                     val airDuctPath = findShortestPath(airDuctGraph)
                     val location0 = AirDuctLocation(Pair(1, 1), 0)
                     val location1 = AirDuctLocation(Pair(9, 1), 1)
@@ -633,17 +707,11 @@ class Day24Spec: Spek({
 
                 it("should find the shortest path") {
                     val airDuctPath = findShortestPath(airDuctGraph).dropConnections()
-                    airDuctPath `should equal` AirDuctPath(
-                            listOf(
-                                    AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0), 0),
-                                    AirDuctPathElement(AirDuctLocation(Pair(1, 3), 4), 2),
-                                    AirDuctPathElement(AirDuctLocation(Pair(1, 1), 0), 2),
-                                    AirDuctPathElement(AirDuctLocation(Pair(3, 1), 1), 2),
-                                    AirDuctPathElement(AirDuctLocation(Pair(9, 1), 2), 6),
-                                    AirDuctPathElement(AirDuctLocation(Pair(9, 3), 3), 2)
-                            ),
-                            14
-                    )
+                    println(airDuctPath.length)
+                    val path = airDuctPath.path.map { it.location.number }
+                    path `should equal` listOf(
+                                    1
+                            )
                 }
             }
         }
